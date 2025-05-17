@@ -15,7 +15,7 @@ from plugins.batch import UB, UC
 from utils.custom_filters import login_in_progress, set_user_step, get_user_step
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-model = "v3saver Team SPY"
+model = "Bot Auto V8 Download"
 
 STEP_PHONE = 1
 STEP_CODE = 2
