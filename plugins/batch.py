@@ -387,6 +387,15 @@ async def run_batch_request(c, m, uid, ubot, uc, source_chat, start_msg_id, coun
         if collection:
             suffix = f"\n🔑 Collection key: `{collection['access_key']}`"
         await m.reply_text(f'Batch Completed ✅ Success: {success}/{count}{suffix}')
+        if collection:
+            try:
+                from plugins.vault import _show_collection_page
+                from utils.func import get_vault_collection_files
+                files = await get_vault_collection_files(collection["_id"])
+                if files:
+                    await _show_collection_page(m, collection, files, page=1, edit=False)
+            except Exception:
+                pass
     finally:
         await remove_active_batch(uid)
 
@@ -407,6 +416,15 @@ async def run_single_request(c, m, uid, ubot, uc, source_chat, msg_id, lt):
             if collection:
                 suffix = f"\n🔑 Collection key: `{collection['access_key']}`"
             await pt.edit(f'1/1: {res}{suffix}')
+            if collection:
+                try:
+                    from plugins.vault import _show_collection_page
+                    from utils.func import get_vault_collection_files
+                    files = await get_vault_collection_files(collection["_id"])
+                    if files:
+                        await _show_collection_page(m, collection, files, page=1, edit=False)
+                except Exception:
+                    pass
         else:
             await pt.edit('Message not found')
     except Exception as e:
