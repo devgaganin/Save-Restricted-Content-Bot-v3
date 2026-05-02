@@ -637,6 +637,27 @@ async def cancel_cmd(c, m):
     else:
         await m.reply_text('No active batch process found.')
 
+
+@X.on_message(filters.regex(r"^(📥 ?开始下载|📥 ?批量下载|❌ ?取消操作|🔙 ?返回主菜单)$") & filters.private)
+async def legacy_button_bridge(c, m):
+    uid = m.from_user.id
+    if uid not in OWNER_ID:
+        return
+
+    text = m.text.strip()
+    if '取消' in text:
+        Z.pop(uid, None)
+        await remove_active_batch(uid)
+        await m.reply_text('Cancelled. Send link / IDs / collection key directly.')
+        return
+
+    if '返回' in text:
+        await m.reply_text('Send link / `频道ID 消息ID [数量]` / `file_store...` directly.')
+        return
+
+    Z[uid] = {'step': 'start'}
+    await m.reply_text('Send start link or `频道ID 消息ID 数量`.')
+
 @X.on_message(filters.text & filters.private & ~login_in_progress & ~filters.command([
     'start', 'batch', 'cancel', 'login', 'logout', 'stop', 'set', 
     'pay', 'redeem', 'gencode', 'single', 'generate', 'keyinfo', 'encrypt', 'decrypt', 'keys', 'setbot', 'rembot']))
