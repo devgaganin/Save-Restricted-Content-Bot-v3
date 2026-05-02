@@ -9,7 +9,7 @@ from pyrogram.errors import UserNotParticipant
 from config import API_ID, API_HASH, LOG_GROUP, STRING, FORCE_SUB, FREEMIUM_LIMIT, PREMIUM_LIMIT, STORAGE_CHANNEL_ID
 from utils.func import get_user_data, screenshot, thumbnail, get_video_metadata
 from utils.func import get_user_data_key, process_text_with_rules, is_premium_user, E
-from utils.func import create_vault_collection, add_vault_file, cache_source_file
+from utils.func import create_vault_collection, add_vault_file, cache_source_file, get_cached_source_file
 from shared_client import app as X
 from plugins.settings import rename_file
 from plugins.start import subscribe as sub
@@ -300,6 +300,27 @@ async def archive_and_forward(c, m, local_file, target_chat_id, reply_to_message
     await c.copy_message(target_chat_id, STORAGE_CHANNEL_ID, storage_msg.id, reply_to_message_id=reply_to_message_id)
     return storage_msg
 
+
+async def replay_cached(c, cached_file, target_chat_id, reply_to_message_id, vault_collection=None):
+    if vault_collection and cached_file.get("collection_id") != vault_collection["_id"]:
+        # duplicate the reference into this collection by writing a new lightweight vault file doc
+        await add_vault_file(
+            collection_id=vault_collection["_id"],
+            source_chat_id=cached_file["source_chat_id"],
+            source_message_id=cached_file["source_message_id"],
+            storage_chat_id=cached_file["storage_chat_id"],
+            storage_message_id=cached_file["storage_message_id"],
+            file_id=cached_file["file_id"],
+            file_unique_id=cached_file["file_unique_id"],
+            file_name=cached_file["file_name"],
+            mime_type=cached_file["mime_type"],
+            file_size=cached_file["file_size"],
+            caption=cached_file.get("caption", ""),
+            storage_mode=cached_file.get("storage_mode", "telegram_vault"),
+        )
+    await c.copy_message(target_chat_id, cached_file["storage_chat_id"], cached_file["storage_message_id"], reply_to_message_id=reply_to_message_id)
+    return True
+
 async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None):
     try:
         cfg_chat = await get_user_data_key(d, 'chat_id', None)
@@ -314,6 +335,11 @@ async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None):
                 tcid = int(cfg_chat)
         
         if m.media:
+            cached_file = await get_cached_source_file(i, m.id)
+            if cached_file:
+                await replay_cached(c, cached_file, tcid, rtmid, vault_collection=vault_collection)
+                return 'Done (cached).'
+
             orig_text = m.caption.markdown if m.caption else ''
             proc_text = await process_text_with_rules(d, orig_text)
             user_cap = await get_user_data_key(d, 'caption', '')
