@@ -8,6 +8,13 @@ from pyrogram.errors import UserNotParticipant
 from pyrogram.types import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
 from config import LOG_GROUP, OWNER_ID, FORCE_SUB
 
+@app.on_message(filters.private, group=-10)
+async def owner_only_guard(_, message):
+    if message.from_user and message.from_user.id not in OWNER_ID:
+        await message.reply_text("🔒 Private bot. Owner only.")
+        message.stop_propagation()
+        return
+
 async def subscribe(app, message):
     if FORCE_SUB:
         try:

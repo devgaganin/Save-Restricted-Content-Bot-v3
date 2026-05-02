@@ -78,6 +78,22 @@ def get_batch_info(user_id: int) -> Optional[Dict[str, Any]]:
 
 ACTIVE_USERS = load_active_users()
 
+
+def parse_source_input(text):
+    raw = text.strip()
+    i, d, lt = E(raw)
+    if i and d:
+        return str(i), int(d), lt, 1
+
+    m = re.match(r'^(-?\d+)\s+(\d+)(?:\s+(\d+))?$', raw)
+    if not m:
+        return None
+
+    chat_id = m.group(1)
+    msg_id = int(m.group(2))
+    count = int(m.group(3)) if m.group(3) else 1
+    return chat_id, msg_id, 'private', count
+
 async def upd_dlg(c):
     try:
         async for _ in c.get_dialogs(limit=100): pass
@@ -320,6 +336,59 @@ async def replay_cached(c, cached_file, target_chat_id, reply_to_message_id, vau
         )
     await c.copy_message(target_chat_id, cached_file["storage_chat_id"], cached_file["storage_message_id"], reply_to_message_id=reply_to_message_id)
     return True
+
+
+async def run_batch_request(c, m, uid, ubot, uc, source_chat, start_msg_id, count, lt):
+    success = 0
+    collection = None
+    pt = await m.reply_text('Processing batch...')
+
+    if is_user_active(uid):
+        await pt.edit('Active task exists. Use /stop first.')
+        return
+
+    await add_active_batch(uid, {
+        "total": count,
+        "current": 0,
+        "success": 0,
+        "cancel_requested": False,
+        "progress_message_id": pt.id
+    })
+
+    if STORAGE_CHANNEL_ID:
+        source_name = sanitize(str(source_chat))
+        collection_name = f"batch_{source_name}_{int(time.time())}"
+        collection = await create_vault_collection(uid, collection_name)
+
+    try:
+        for j in range(count):
+            if should_cancel(uid):
+                await pt.edit(f'Cancelled at {j}/{count}. Success: {success}')
+                break
+
+            await update_batch_progress(uid, j, success)
+            mid = int(start_msg_id) + j
+
+            try:
+                msg = await get_msg(ubot, uc, source_chat, mid, lt)
+                if msg:
+                    res = await process_msg(ubot, uc, msg, str(m.chat.id), lt, uid, source_chat, vault_collection=collection)
+                    if 'Done' in res or 'Copied' in res or 'Sent' in res:
+                        success += 1
+            except Exception as e:
+                try:
+                    await pt.edit(f'{j+1}/{count}: Error - {str(e)[:30]}')
+                except Exception:
+                    pass
+
+            await asyncio.sleep(10)
+
+        suffix = ""
+        if collection:
+            suffix = f"\n🔑 Collection key: `{collection['access_key']}`"
+        await m.reply_text(f'Batch Completed ✅ Success: {success}/{count}{suffix}')
+    finally:
+        await remove_active_batch(uid)
 
 async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None):
     try:
@@ -605,70 +674,53 @@ async def text_handler(c, m):
 
         Z[uid].update({'step': 'process', 'did': str(m.chat.id), 'num': count})
         i, s, n, lt = Z[uid]['cid'], Z[uid]['sid'], Z[uid]['num'], Z[uid]['lt']
-        success = 0
-        collection = None
-
-        pt = await m.reply_text('Processing batch...')
         uc = await get_uclient(uid)
         ubot = UB.get(uid)
         
         if not uc or not ubot:
-            await pt.edit('Missing client setup')
+            await m.reply_text('Missing client setup')
             Z.pop(uid, None)
             return
-            
-        if is_user_active(uid):
-            await pt.edit('Active task exists')
-            Z.pop(uid, None)
-            return
-        
-        await add_active_batch(uid, {
-            "total": n,
-            "current": 0,
-            "success": 0,
-            "cancel_requested": False,
-            "progress_message_id": pt.id
-            })
-
-        if STORAGE_CHANNEL_ID:
-            source_name = sanitize(str(i))
-            collection_name = f"batch_{source_name}_{int(time.time())}"
-            collection = await create_vault_collection(uid, collection_name)
-
         try:
-            for j in range(n):
-                
-                if should_cancel(uid):
-                    await pt.edit(f'Cancelled at {j}/{n}. Success: {success}')
-                    break
-                
-                await update_batch_progress(uid, j, success)
-                
-                mid = int(s) + j
-                
-                try:
-                    msg = await get_msg(ubot, uc, i, mid, lt)
-                    if msg:
-                        res = await process_msg(ubot, uc, msg, str(m.chat.id), lt, uid, i, vault_collection=collection)
-                        if 'Done' in res or 'Copied' in res or 'Sent' in res:
-                            success += 1
-                    else:
-                        pass
-                except Exception as e:
-                    try: await pt.edit(f'{j+1}/{n}: Error - {str(e)[:30]}')
-                    except: pass
-                
-                await asyncio.sleep(10)
-            
-            if j+1 == n:
-                suffix = ""
-                if collection:
-                    suffix = f"\n🔑 Collection key: `{collection['access_key']}`"
-                await m.reply_text(f'Batch Completed ✅ Success: {success}/{n}{suffix}')
-        
+            await run_batch_request(ubot, m, uid, ubot, uc, i, s, n, lt)
         finally:
-            await remove_active_batch(uid)
             Z.pop(uid, None)
+
+
+@X.on_message(filters.text & filters.private & ~login_in_progress & ~filters.command([
+    'start', 'batch', 'cancel', 'login', 'logout', 'stop', 'set',
+    'pay', 'redeem', 'gencode', 'single', 'generate', 'keyinfo', 'encrypt', 'decrypt', 'keys', 'setbot', 'rembot'
+]))
+async def direct_input_handler(c, m):
+    uid = m.from_user.id
+    if uid not in OWNER_ID or uid in Z:
+        return
+
+    parsed = parse_source_input(m.text)
+    if not parsed:
+        return
+
+    source_chat, start_msg_id, lt, count = parsed
+    ubot = await get_ubot(uid)
+    uc = await get_uclient(uid)
+    if not ubot or not uc:
+        await m.reply_text('Missing client setup')
+        return
+
+    if count <= 1:
+        pt = await m.reply_text('Processing...')
+        try:
+            msg = await get_msg(ubot, uc, source_chat, start_msg_id, lt)
+            if msg:
+                res = await process_msg(ubot, uc, msg, str(m.chat.id), lt, uid, source_chat)
+                await pt.edit(f'1/1: {res}')
+            else:
+                await pt.edit('Message not found')
+        except Exception as e:
+            await pt.edit(f'Error: {str(e)[:50]}')
+        return
+
+    await run_batch_request(ubot, m, uid, ubot, uc, source_chat, start_msg_id, count, lt)
 
 
 
