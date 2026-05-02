@@ -390,6 +390,28 @@ async def run_batch_request(c, m, uid, ubot, uc, source_chat, start_msg_id, coun
     finally:
         await remove_active_batch(uid)
 
+
+async def run_single_request(c, m, uid, ubot, uc, source_chat, msg_id, lt):
+    pt = await m.reply_text('Processing...')
+    collection = None
+    if STORAGE_CHANNEL_ID:
+        source_name = sanitize(str(source_chat))
+        collection_name = f"single_{source_name}_{int(time.time())}"
+        collection = await create_vault_collection(uid, collection_name)
+
+    try:
+        msg = await get_msg(ubot, uc, source_chat, msg_id, lt)
+        if msg:
+            res = await process_msg(ubot, uc, msg, str(m.chat.id), lt, uid, source_chat, vault_collection=collection)
+            suffix = ""
+            if collection:
+                suffix = f"\n🔑 Collection key: `{collection['access_key']}`"
+            await pt.edit(f'1/1: {res}{suffix}')
+        else:
+            await pt.edit('Message not found')
+    except Exception as e:
+        await pt.edit(f'Error: {str(e)[:50]}')
+
 async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None):
     try:
         cfg_chat = await get_user_data_key(d, 'chat_id', None)
@@ -606,7 +628,7 @@ async def text_handler(c, m):
     s = Z[uid].get('step')
     x = await get_ubot(uid)
     if not x:
-        await message.reply("Add your bot /setbot `token`")
+        await m.reply("Add your bot /setbot `token`")
         return
 
     if s == 'start':
@@ -629,34 +651,25 @@ async def text_handler(c, m):
 
         Z[uid].update({'step': 'process_single', 'cid': i, 'sid': d, 'lt': lt})
         i, s, lt = Z[uid]['cid'], Z[uid]['sid'], Z[uid]['lt']
-        pt = await m.reply_text('Processing...')
-        
         ubot = UB.get(uid)
         if not ubot:
-            await pt.edit('Add bot with /setbot first')
+            await m.reply_text('Add bot with /setbot first')
             Z.pop(uid, None)
             return
         
         uc = await get_uclient(uid)
         if not uc:
-            await pt.edit('Cannot proceed without user client.')
+            await m.reply_text('Cannot proceed without user client.')
             Z.pop(uid, None)
             return
             
         if is_user_active(uid):
-            await pt.edit('Active task exists. Use /stop first.')
+            await m.reply_text('Active task exists. Use /stop first.')
             Z.pop(uid, None)
             return
 
         try:
-            msg = await get_msg(ubot, uc, i, s, lt)
-            if msg:
-                res = await process_msg(ubot, uc, msg, str(m.chat.id), lt, uid, i)
-                await pt.edit(f'1/1: {res}')
-            else:
-                await pt.edit('Message not found')
-        except Exception as e:
-            await pt.edit(f'Error: {str(e)[:50]}')
+            await run_single_request(ubot, m, uid, ubot, uc, i, s, lt)
         finally:
             Z.pop(uid, None)
 
@@ -708,16 +721,7 @@ async def direct_input_handler(c, m):
         return
 
     if count <= 1:
-        pt = await m.reply_text('Processing...')
-        try:
-            msg = await get_msg(ubot, uc, source_chat, start_msg_id, lt)
-            if msg:
-                res = await process_msg(ubot, uc, msg, str(m.chat.id), lt, uid, source_chat)
-                await pt.edit(f'1/1: {res}')
-            else:
-                await pt.edit('Message not found')
-        except Exception as e:
-            await pt.edit(f'Error: {str(e)[:50]}')
+        await run_single_request(ubot, m, uid, ubot, uc, source_chat, start_msg_id, lt)
         return
 
     await run_batch_request(ubot, m, uid, ubot, uc, source_chat, start_msg_id, count, lt)
