@@ -607,7 +607,7 @@ async def process_cmd(c, m):
     uid = m.from_user.id
     cmd = m.command[0]
     
-    if FREEMIUM_LIMIT == 0 and not await is_premium_user(uid):
+    if uid not in OWNER_ID and FREEMIUM_LIMIT == 0 and not await is_premium_user(uid):
         await m.reply_text("This bot does not provide free servies, get subscription from OWNER")
         return
     
@@ -718,7 +718,7 @@ async def text_handler(c, m):
             return
         
         count = int(m.text)
-        maxlimit = PREMIUM_LIMIT if await is_premium_user(uid) else FREEMIUM_LIMIT
+        maxlimit = PREMIUM_LIMIT if (uid in OWNER_ID or await is_premium_user(uid)) else FREEMIUM_LIMIT
 
         if count > maxlimit:
             await m.reply_text(f'Maximum limit is {maxlimit}.')
