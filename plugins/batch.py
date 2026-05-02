@@ -6,9 +6,10 @@ import os, re, time, asyncio, json, asyncio
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from pyrogram.errors import UserNotParticipant
-from config import API_ID, API_HASH, LOG_GROUP, STRING, FORCE_SUB, FREEMIUM_LIMIT, PREMIUM_LIMIT
+from config import API_ID, API_HASH, LOG_GROUP, STRING, FORCE_SUB, FREEMIUM_LIMIT, PREMIUM_LIMIT, STORAGE_CHANNEL_ID
 from utils.func import get_user_data, screenshot, thumbnail, get_video_metadata
 from utils.func import get_user_data_key, process_text_with_rules, is_premium_user, E
+from utils.func import create_vault_collection, add_vault_file, cache_source_file
 from shared_client import app as X
 from plugins.settings import rename_file
 from plugins.start import subscribe as sub
@@ -239,7 +240,67 @@ async def send_direct(c, m, tcid, ft=None, rtmid=None):
         print(f'Direct send error: {e}')
         return False
 
-async def process_msg(c, u, m, d, lt, uid, i):
+async def archive_and_forward(c, m, local_file, target_chat_id, reply_to_message_id, caption_text, vault_collection, source_chat_id):
+    file_name = os.path.basename(local_file)
+    file_ext = os.path.splitext(local_file)[1].lower()
+    is_video = file_ext in ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ogv']
+    is_audio = file_ext in ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma', '.m4a', '.opus', '.aiff', '.ac3']
+    is_photo = file_ext in ['.jpg', '.jpeg', '.png', '.webp']
+    file_size = os.path.getsize(local_file)
+    storage_msg = None
+
+    if is_video:
+        mtd = await get_video_metadata(local_file)
+        dur, h, w = mtd['duration'], mtd['height'], mtd['width']
+        th = await screenshot(local_file, dur, str(target_chat_id))
+        storage_msg = await c.send_video(
+            STORAGE_CHANNEL_ID,
+            video=local_file,
+            caption=caption_text or None,
+            thumb=th,
+            width=w,
+            height=h,
+            duration=dur,
+        )
+    elif is_audio:
+        storage_msg = await c.send_audio(
+            STORAGE_CHANNEL_ID,
+            audio=local_file,
+            caption=caption_text or None,
+        )
+    elif is_photo:
+        storage_msg = await c.send_photo(
+            STORAGE_CHANNEL_ID,
+            photo=local_file,
+            caption=caption_text or None,
+        )
+    else:
+        storage_msg = await c.send_document(
+            STORAGE_CHANNEL_ID,
+            document=local_file,
+            caption=caption_text or None,
+        )
+
+    media = storage_msg.video or storage_msg.audio or storage_msg.photo or storage_msg.document or storage_msg.voice
+    saved = await add_vault_file(
+        collection_id=vault_collection["_id"] if vault_collection else None,
+        source_chat_id=source_chat_id,
+        source_message_id=m.id,
+        storage_chat_id=STORAGE_CHANNEL_ID,
+        storage_message_id=storage_msg.id,
+        file_id=getattr(media, "file_id", None),
+        file_unique_id=getattr(media, "file_unique_id", None),
+        file_name=file_name,
+        mime_type="video/mp4" if is_video else "audio/mpeg" if is_audio else "image/jpeg" if is_photo else "application/octet-stream",
+        file_size=file_size,
+        caption=caption_text or "",
+        storage_mode="telegram_vault",
+    )
+    await cache_source_file(source_chat_id, m.id, saved["_id"])
+    await c.copy_message(target_chat_id, STORAGE_CHANNEL_ID, storage_msg.id, reply_to_message_id=reply_to_message_id)
+    return storage_msg
+
+async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None):
     try:
         cfg_chat = await get_user_data_key(d, 'chat_id', None)
         tcid = d
@@ -339,6 +400,22 @@ async def process_msg(c, u, m, d, lt, uid, i):
             st = time.time()
 
             try:
+                if STORAGE_CHANNEL_ID and vault_collection:
+                    await archive_and_forward(
+                        c=c,
+                        m=m,
+                        local_file=f,
+                        target_chat_id=tcid,
+                        reply_to_message_id=rtmid,
+                        caption_text=ft if m.caption else None,
+                        vault_collection=vault_collection,
+                        source_chat_id=i,
+                    )
+                    if os.path.exists(f):
+                        os.remove(f)
+                    await c.delete_messages(d, p.id)
+                    return 'Done.'
+
                 video_extensions = ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ogv']
                 audio_extensions = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma', '.m4a', '.opus', '.aiff', '.ac3']
                 file_ext = os.path.splitext(f)[1].lower()
@@ -503,6 +580,7 @@ async def text_handler(c, m):
         Z[uid].update({'step': 'process', 'did': str(m.chat.id), 'num': count})
         i, s, n, lt = Z[uid]['cid'], Z[uid]['sid'], Z[uid]['num'], Z[uid]['lt']
         success = 0
+        collection = None
 
         pt = await m.reply_text('Processing batch...')
         uc = await get_uclient(uid)
@@ -525,7 +603,12 @@ async def text_handler(c, m):
             "cancel_requested": False,
             "progress_message_id": pt.id
             })
-        
+
+        if STORAGE_CHANNEL_ID:
+            source_name = sanitize(str(i))
+            collection_name = f"batch_{source_name}_{int(time.time())}"
+            collection = await create_vault_collection(uid, collection_name)
+
         try:
             for j in range(n):
                 
@@ -540,7 +623,7 @@ async def text_handler(c, m):
                 try:
                     msg = await get_msg(ubot, uc, i, mid, lt)
                     if msg:
-                        res = await process_msg(ubot, uc, msg, str(m.chat.id), lt, uid, i)
+                        res = await process_msg(ubot, uc, msg, str(m.chat.id), lt, uid, i, vault_collection=collection)
                         if 'Done' in res or 'Copied' in res or 'Sent' in res:
                             success += 1
                     else:
@@ -552,7 +635,10 @@ async def text_handler(c, m):
                 await asyncio.sleep(10)
             
             if j+1 == n:
-                await m.reply_text(f'Batch Completed ✅ Success: {success}/{n}')
+                suffix = ""
+                if collection:
+                    suffix = f"\n🔑 Collection key: `{collection['access_key']}`"
+                await m.reply_text(f'Batch Completed ✅ Success: {success}/{n}{suffix}')
         
         finally:
             await remove_active_batch(uid)

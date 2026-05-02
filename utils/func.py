@@ -114,6 +114,10 @@ async def get_vault_collection_files(collection_id):
     return await cursor.to_list(length=5000)
 
 
+async def get_vault_file_by_key(access_key):
+    return await vault_files_collection.find_one({"access_key": access_key})
+
+
 async def cache_source_file(source_chat_id, source_message_id, file_doc_id):
     await vault_source_cache_collection.update_one(
         {"source_chat_id": int(source_chat_id), "source_message_id": int(source_message_id)},
