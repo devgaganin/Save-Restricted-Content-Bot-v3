@@ -4,8 +4,9 @@ psutil
 opencv-python-headless
 devgagantools
 aiofiles
+pyrofork
 # ggnpyro
-https://www.dl.dropboxusercontent.com/scl/fi/e0fo6fcjn8kmr5r0x6wvg/myownpyro.zip?rlkey=d1znpwckss4ullz0sg7e1qjjg&st=kmbh7wdv&dl=0
+# https://www.dl.dropboxusercontent.com/scl/fi/e0fo6fcjn8kmr5r0x6wvg/myownpyro.zip?rlkey=d1znpwckss4ullz0sg7e1qjjg&st=kmbh7wdv&dl=0
 aiohttp
 telethon-tgcrypto
 motor
@@ -19,3 +20,4 @@ mutagen
 yt-dlp
 requests
 cryptography
+

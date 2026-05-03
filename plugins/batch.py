@@ -290,6 +290,7 @@ async def process_msg(c, u, m, d, lt, uid, i):
                 file_name = m.document.file_name
                 if not file_name:
                     file_name = f"{time.time()}"
+                else:
                     c_name = sanitize(file_name)
             elif m.photo:
                 file_name = f"{time.time()}.jpg"
@@ -618,4 +619,6 @@ async def text_handler(c, m):
         finally:
             await remove_active_batch(uid)
             Z.pop(uid, None)
+
+
 
