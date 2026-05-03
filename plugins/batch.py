@@ -10,7 +10,7 @@ from config import API_ID, API_HASH, LOG_GROUP, STRING, FORCE_SUB, FREEMIUM_LIMI
 from utils.func import get_user_data, screenshot, thumbnail, get_video_metadata
 from utils.func import get_user_data_key, process_text_with_rules, is_premium_user, E
 from utils.func import create_vault_collection, add_vault_file, cache_source_file, get_cached_source_file
-from shared_client import app as X
+from shared_client import app as X, userbot as Y
 from plugins.settings import rename_file
 from plugins.start import subscribe as sub
 from utils.custom_filters import login_in_progress
@@ -18,7 +18,6 @@ from utils.encrypt import dcs
 from typing import Dict, Any, Optional
 
 
-Y = None if not STRING else __import__('shared_client').userbot
 Z, P, UB, UC, emp = {}, {}, {}, {}, {}
 
 ACTIVE_USERS = {}
@@ -431,6 +430,21 @@ async def run_single_request(c, m, uid, ubot, uc, source_chat, msg_id, lt):
     except Exception as e:
         await pt.edit(f'Error: {str(e)[:50]}')
 
+
+async def run_parsed_request(m, uid, parsed, force_single=False):
+    source_chat, start_msg_id, lt, count = parsed
+    ubot = await get_ubot(uid)
+    uc = await get_uclient(uid)
+    if not ubot or not uc:
+        await m.reply_text('Missing client setup')
+        return
+
+    if force_single or count <= 1:
+        await run_single_request(ubot, m, uid, ubot, uc, source_chat, start_msg_id, lt)
+        return
+
+    await run_batch_request(ubot, m, uid, ubot, uc, source_chat, start_msg_id, count, lt)
+
 async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None):
     try:
         cfg_chat = await get_user_data_key(d, 'chat_id', None)
@@ -660,8 +674,10 @@ async def legacy_button_bridge(c, m):
     await m.reply_text('Send start link or `频道ID 消息ID 数量`.')
 
 @X.on_message(filters.text & filters.private & ~login_in_progress & ~filters.command([
-    'start', 'batch', 'cancel', 'login', 'logout', 'stop', 'set', 
-    'pay', 'redeem', 'gencode', 'single', 'generate', 'keyinfo', 'encrypt', 'decrypt', 'keys', 'setbot', 'rembot']))
+    'start', 'batch', 'cancel', 'login', 'logout', 'stop', 'set',
+    'pay', 'redeem', 'gencode', 'single', 'generate', 'keyinfo', 'encrypt', 'decrypt', 'keys', 'setbot', 'rembot',
+    'mycollections'
+]))
 async def text_handler(c, m):
     uid = m.from_user.id
     if uid not in Z: return
@@ -672,6 +688,12 @@ async def text_handler(c, m):
         return
 
     if s == 'start':
+        parsed = parse_source_input(m.text)
+        if parsed:
+            Z.pop(uid, None)
+            await run_parsed_request(m, uid, parsed, force_single=False)
+            return
+
         L = m.text
         i, d, lt = E(L)
         if not i or not d:
@@ -682,6 +704,12 @@ async def text_handler(c, m):
         await m.reply_text('How many messages?')
 
     elif s == 'start_single':
+        parsed = parse_source_input(m.text)
+        if parsed:
+            Z.pop(uid, None)
+            await run_parsed_request(m, uid, parsed, force_single=True)
+            return
+
         L = m.text
         i, d, lt = E(L)
         if not i or not d:
@@ -691,7 +719,7 @@ async def text_handler(c, m):
 
         Z[uid].update({'step': 'process_single', 'cid': i, 'sid': d, 'lt': lt})
         i, s, lt = Z[uid]['cid'], Z[uid]['sid'], Z[uid]['lt']
-        ubot = UB.get(uid)
+        ubot = await get_ubot(uid)
         if not ubot:
             await m.reply_text('Add bot with /setbot first')
             Z.pop(uid, None)
@@ -728,7 +756,7 @@ async def text_handler(c, m):
         Z[uid].update({'step': 'process', 'did': str(m.chat.id), 'num': count})
         i, s, n, lt = Z[uid]['cid'], Z[uid]['sid'], Z[uid]['num'], Z[uid]['lt']
         uc = await get_uclient(uid)
-        ubot = UB.get(uid)
+        ubot = await get_ubot(uid)
         
         if not uc or not ubot:
             await m.reply_text('Missing client setup')
@@ -742,7 +770,8 @@ async def text_handler(c, m):
 
 @X.on_message(filters.text & filters.private & ~login_in_progress & ~filters.command([
     'start', 'batch', 'cancel', 'login', 'logout', 'stop', 'set',
-    'pay', 'redeem', 'gencode', 'single', 'generate', 'keyinfo', 'encrypt', 'decrypt', 'keys', 'setbot', 'rembot'
+    'pay', 'redeem', 'gencode', 'single', 'generate', 'keyinfo', 'encrypt', 'decrypt', 'keys', 'setbot', 'rembot',
+    'mycollections'
 ]))
 async def direct_input_handler(c, m):
     uid = m.from_user.id
@@ -753,18 +782,7 @@ async def direct_input_handler(c, m):
     if not parsed:
         return
 
-    source_chat, start_msg_id, lt, count = parsed
-    ubot = await get_ubot(uid)
-    uc = await get_uclient(uid)
-    if not ubot or not uc:
-        await m.reply_text('Missing client setup')
-        return
-
-    if count <= 1:
-        await run_single_request(ubot, m, uid, ubot, uc, source_chat, start_msg_id, lt)
-        return
-
-    await run_batch_request(ubot, m, uid, ubot, uc, source_chat, start_msg_id, count, lt)
+    await run_parsed_request(m, uid, parsed, force_single=False)
 
 
 
