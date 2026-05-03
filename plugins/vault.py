@@ -154,7 +154,10 @@ async def _show_collection_page(message, collection, files, page=1, edit=False):
     text = "\n".join(lines)
 
     buttons = [
-        [InlineKeyboardButton(f"Send This Page ({len(page_files)})", callback_data=f"vault_send_{collection['access_key']}_{page}")]
+        [
+            InlineKeyboardButton(f"Send This Page ({len(page_files)})", callback_data=f"vault_send_{collection['access_key']}_{page}"),
+            InlineKeyboardButton("Show File Codes", callback_data=f"vault_codes_{collection['access_key']}_{page}")
+        ]
     ]
     if total_files > per_page:
         buttons.append([InlineKeyboardButton(f"Send All ({total_files})", callback_data=f"vault_all_{collection['access_key']}")])
@@ -194,7 +197,7 @@ async def mycollections_handler(_, message):
     await message.reply_text("\n".join(lines))
 
 
-@app.on_callback_query(filters.regex(r"^vault_(page|send|all)_"))
+@app.on_callback_query(filters.regex(r"^vault_(page|send|all|codes)_"))
 async def vault_callback_handler(_, callback):
     if not _is_owner(callback.from_user.id):
         await callback.answer("Private bot. Owner only.", show_alert=True)
@@ -202,8 +205,8 @@ async def vault_callback_handler(_, callback):
 
     parts = callback.data.split("_")
     action = parts[1]
-    access_key = "_".join(parts[2:-1]) if action in {"page", "send"} else "_".join(parts[2:])
-    page = int(parts[-1]) if action in {"page", "send"} else 1
+    access_key = "_".join(parts[2:-1]) if action in {"page", "send", "codes"} else "_".join(parts[2:])
+    page = int(parts[-1]) if action in {"page", "send", "codes"} else 1
 
     collection = await get_vault_collection_by_key(access_key)
     if not collection:
@@ -221,6 +224,18 @@ async def vault_callback_handler(_, callback):
         end_idx = start_idx + 10
         sent = await _send_vault_files(callback.message.chat.id, files[start_idx:end_idx])
         await callback.answer(f"Sent {sent} files.")
+        return
+
+    if action == "codes":
+        start_idx = (page - 1) * 10
+        end_idx = start_idx + 10
+        page_files = files[start_idx:end_idx]
+        lines = [f"File Codes | {collection['name']} | page {page}\n"]
+        for idx, item in enumerate(page_files, start=1):
+            lines.append(f"{idx}. `{_short_text(item.get('file_name') or 'unnamed file', 28)}`")
+            lines.append(f"   `{item['access_key']}`")
+        await callback.message.reply_text("\n".join(lines), disable_web_page_preview=True)
+        await callback.answer("File codes sent.")
         return
 
     sent = await _send_vault_files(callback.message.chat.id, files)
