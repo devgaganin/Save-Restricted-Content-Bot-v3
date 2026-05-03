@@ -256,7 +256,7 @@ async def send_direct(c, m, tcid, ft=None, rtmid=None):
         print(f'Direct send error: {e}')
         return False
 
-async def archive_and_forward(c, m, local_file, target_chat_id, reply_to_message_id, caption_text, vault_collection, source_chat_id):
+async def archive_and_forward(c, m, local_file, target_chat_id, reply_to_message_id, caption_text, vault_collection, source_chat_id, deliver_now=True):
     file_name = os.path.basename(local_file)
     file_ext = os.path.splitext(local_file)[1].lower()
     is_video = file_ext in ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ogv']
@@ -313,11 +313,12 @@ async def archive_and_forward(c, m, local_file, target_chat_id, reply_to_message
         storage_mode="telegram_vault",
     )
     await cache_source_file(source_chat_id, m.id, saved["_id"])
-    await c.copy_message(target_chat_id, STORAGE_CHANNEL_ID, storage_msg.id, reply_to_message_id=reply_to_message_id)
+    if deliver_now:
+        await c.copy_message(target_chat_id, STORAGE_CHANNEL_ID, storage_msg.id, reply_to_message_id=reply_to_message_id)
     return storage_msg
 
 
-async def replay_cached(c, cached_file, target_chat_id, reply_to_message_id, vault_collection=None):
+async def replay_cached(c, cached_file, target_chat_id, reply_to_message_id, vault_collection=None, deliver_now=True):
     if vault_collection and cached_file.get("collection_id") != vault_collection["_id"]:
         # duplicate the reference into this collection by writing a new lightweight vault file doc
         await add_vault_file(
@@ -334,7 +335,8 @@ async def replay_cached(c, cached_file, target_chat_id, reply_to_message_id, vau
             caption=cached_file.get("caption", ""),
             storage_mode=cached_file.get("storage_mode", "telegram_vault"),
         )
-    await c.copy_message(target_chat_id, cached_file["storage_chat_id"], cached_file["storage_message_id"], reply_to_message_id=reply_to_message_id)
+    if deliver_now:
+        await c.copy_message(target_chat_id, cached_file["storage_chat_id"], cached_file["storage_message_id"], reply_to_message_id=reply_to_message_id)
     return True
 
 
@@ -372,7 +374,17 @@ async def run_batch_request(c, m, uid, ubot, uc, source_chat, start_msg_id, coun
             try:
                 msg = await get_msg(ubot, uc, source_chat, mid, lt)
                 if msg:
-                    res = await process_msg(ubot, uc, msg, str(m.chat.id), lt, uid, source_chat, vault_collection=collection)
+                    res = await process_msg(
+                        ubot,
+                        uc,
+                        msg,
+                        str(m.chat.id),
+                        lt,
+                        uid,
+                        source_chat,
+                        vault_collection=collection,
+                        deliver_now=False,
+                    )
                     if 'Done' in res or 'Copied' in res or 'Sent' in res:
                         success += 1
             except Exception as e:
@@ -411,7 +423,17 @@ async def run_single_request(c, m, uid, ubot, uc, source_chat, msg_id, lt):
     try:
         msg = await get_msg(ubot, uc, source_chat, msg_id, lt)
         if msg:
-            res = await process_msg(ubot, uc, msg, str(m.chat.id), lt, uid, source_chat, vault_collection=collection)
+            res = await process_msg(
+                ubot,
+                uc,
+                msg,
+                str(m.chat.id),
+                lt,
+                uid,
+                source_chat,
+                vault_collection=collection,
+                deliver_now=True,
+            )
             suffix = ""
             if collection:
                 suffix = f"\n🔑 Collection key: `{collection['access_key']}`"
@@ -445,7 +467,7 @@ async def run_parsed_request(m, uid, parsed, force_single=False):
 
     await run_batch_request(ubot, m, uid, ubot, uc, source_chat, start_msg_id, count, lt)
 
-async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None):
+async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None, deliver_now=True):
     try:
         cfg_chat = await get_user_data_key(d, 'chat_id', None)
         tcid = d
@@ -461,15 +483,22 @@ async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None):
         if m.media:
             cached_file = await get_cached_source_file(i, m.id)
             if cached_file:
-                await replay_cached(c, cached_file, tcid, rtmid, vault_collection=vault_collection)
-                return 'Done (cached).'
+                await replay_cached(
+                    c,
+                    cached_file,
+                    tcid,
+                    rtmid,
+                    vault_collection=vault_collection,
+                    deliver_now=deliver_now,
+                )
+                return 'Done (cached).' if deliver_now else 'Archived (cached).'
 
             orig_text = m.caption.markdown if m.caption else ''
             proc_text = await process_text_with_rules(d, orig_text)
             user_cap = await get_user_data_key(d, 'caption', '')
             ft = f'{proc_text}\n\n{user_cap}' if proc_text and user_cap else user_cap if user_cap else proc_text
             
-            if lt == 'public' and not emp.get(i, False):
+            if lt == 'public' and not emp.get(i, False) and not vault_collection and deliver_now:
                 await send_direct(c, m, tcid, ft, rtmid)
                 return 'Sent directly.'
             
@@ -521,6 +550,7 @@ async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None):
                 mtd = await get_video_metadata(f)
                 dur, h, w = mtd['duration'], mtd['width'], mtd['height']
                 th = await screenshot(f, dur, d)
+                upload_chat_id = STORAGE_CHANNEL_ID if (vault_collection and STORAGE_CHANNEL_ID) else LOG_GROUP
                 
                 send_funcs = {'video': Y.send_video, 'video_note': Y.send_video_note, 
                             'voice': Y.send_voice, 'audio': Y.send_audio, 
@@ -529,7 +559,7 @@ async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None):
                 for mtype, func in send_funcs.items():
                     if f.endswith('.mp4'): mtype = 'video'
                     if getattr(m, mtype, None):
-                        sent = await func(LOG_GROUP, f, thumb=th if mtype == 'video' else None, 
+                        sent = await func(upload_chat_id, f, thumb=th if mtype == 'video' else None, 
                                         duration=dur if mtype == 'video' else None,
                                         height=h if mtype == 'video' else None,
                                         width=w if mtype == 'video' else None,
@@ -537,14 +567,34 @@ async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None):
                                         reply_to_message_id=rtmid, progress=prog, progress_args=(c, d, p.id, st))
                         break
                 else:
-                    sent = await Y.send_document(LOG_GROUP, f, thumb=th, caption=ft if m.caption else None,
+                    sent = await Y.send_document(upload_chat_id, f, thumb=th, caption=ft if m.caption else None,
                                                 reply_to_message_id=rtmid, progress=prog, progress_args=(c, d, p.id, st))
-                
-                await c.copy_message(d, LOG_GROUP, sent.id)
+
+                if vault_collection and STORAGE_CHANNEL_ID:
+                    media = sent.video or sent.audio or sent.photo or sent.document or sent.voice
+                    saved = await add_vault_file(
+                        collection_id=vault_collection["_id"],
+                        source_chat_id=i,
+                        source_message_id=m.id,
+                        storage_chat_id=STORAGE_CHANNEL_ID,
+                        storage_message_id=sent.id,
+                        file_id=getattr(media, "file_id", None),
+                        file_unique_id=getattr(media, "file_unique_id", None),
+                        file_name=os.path.basename(f),
+                        mime_type="video/mp4" if sent.video else "audio/mpeg" if sent.audio else "image/jpeg" if sent.photo else "application/octet-stream",
+                        file_size=os.path.getsize(f),
+                        caption=ft or "",
+                        storage_mode="telegram_vault",
+                    )
+                    await cache_source_file(i, m.id, saved["_id"])
+                    if deliver_now:
+                        await c.copy_message(tcid, STORAGE_CHANNEL_ID, sent.id, reply_to_message_id=rtmid)
+                else:
+                    await c.copy_message(d, LOG_GROUP, sent.id)
                 os.remove(f)
                 await c.delete_messages(d, p.id)
-                
-                return 'Done (Large file).'
+
+                return 'Done (Large file).' if deliver_now else 'Archived (Large file).'
             
             await c.edit_message_text(d, p.id, 'Uploading...')
             st = time.time()
@@ -560,11 +610,12 @@ async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None):
                         caption_text=ft if m.caption else None,
                         vault_collection=vault_collection,
                         source_chat_id=i,
+                        deliver_now=deliver_now,
                     )
                     if os.path.exists(f):
                         os.remove(f)
                     await c.delete_messages(d, p.id)
-                    return 'Done.'
+                    return 'Done.' if deliver_now else 'Archived.'
 
                 video_extensions = ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ogv']
                 audio_extensions = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma', '.m4a', '.opus', '.aiff', '.ac3']
@@ -677,6 +728,27 @@ async def legacy_button_bridge(c, m):
     'start', 'batch', 'cancel', 'login', 'logout', 'stop', 'set',
     'pay', 'redeem', 'gencode', 'single', 'generate', 'keyinfo', 'encrypt', 'decrypt', 'keys', 'setbot', 'rembot',
     'mycollections'
+]), group=-5)
+async def global_source_input_handler(c, m):
+    uid = m.from_user.id
+    if uid not in OWNER_ID:
+        return
+
+    parsed = parse_source_input(m.text)
+    if not parsed:
+        return
+
+    state = Z.get(uid, {}).get('step')
+    force_single = state == 'start_single'
+    Z.pop(uid, None)
+    await run_parsed_request(m, uid, parsed, force_single=force_single)
+    m.stop_propagation()
+
+
+@X.on_message(filters.text & filters.private & ~login_in_progress & ~filters.command([
+    'start', 'batch', 'cancel', 'login', 'logout', 'stop', 'set',
+    'pay', 'redeem', 'gencode', 'single', 'generate', 'keyinfo', 'encrypt', 'decrypt', 'keys', 'setbot', 'rembot',
+    'mycollections'
 ]))
 async def text_handler(c, m):
     uid = m.from_user.id
@@ -688,12 +760,6 @@ async def text_handler(c, m):
         return
 
     if s == 'start':
-        parsed = parse_source_input(m.text)
-        if parsed:
-            Z.pop(uid, None)
-            await run_parsed_request(m, uid, parsed, force_single=False)
-            return
-
         L = m.text
         i, d, lt = E(L)
         if not i or not d:
@@ -704,12 +770,6 @@ async def text_handler(c, m):
         await m.reply_text('How many messages?')
 
     elif s == 'start_single':
-        parsed = parse_source_input(m.text)
-        if parsed:
-            Z.pop(uid, None)
-            await run_parsed_request(m, uid, parsed, force_single=True)
-            return
-
         L = m.text
         i, d, lt = E(L)
         if not i or not d:
