@@ -6,7 +6,7 @@ import os, re, time, asyncio, json, asyncio
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from pyrogram.errors import UserNotParticipant
-from config import API_ID, API_HASH, LOG_GROUP, STRING, FORCE_SUB, FREEMIUM_LIMIT, PREMIUM_LIMIT, STORAGE_CHANNEL_ID
+from config import API_ID, API_HASH, LOG_GROUP, STRING, FORCE_SUB, FREEMIUM_LIMIT, PREMIUM_LIMIT, STORAGE_CHANNEL_ID, OWNER_ID
 from utils.func import get_user_data, screenshot, thumbnail, get_video_metadata
 from utils.func import get_user_data_key, process_text_with_rules, is_premium_user, E
 from utils.func import create_vault_collection, add_vault_file, cache_source_file, get_cached_source_file
@@ -186,7 +186,8 @@ async def get_msg(c, u, i, d, lt):
 
 async def get_ubot(uid):
     bt = await get_user_data_key(uid, "bot_token", None)
-    if not bt: return None
+    if not bt:
+        return X if uid in OWNER_ID else None
     if uid in UB: return UB.get(uid)
     try:
         bot = Client(f"user_{uid}", bot_token=bt, api_id=API_ID, api_hash=API_HASH)
@@ -199,10 +200,10 @@ async def get_ubot(uid):
 
 async def get_uclient(uid):
     ud = await get_user_data(uid)
-    ubot = UB.get(uid)
     cl = UC.get(uid)
     if cl: return cl
-    if not ud: return ubot if ubot else None
+    if not ud:
+        return Y
     xxx = ud.get('session_string')
     if xxx:
         try:
@@ -214,7 +215,7 @@ async def get_uclient(uid):
             return gg
         except Exception as e:
             print(f'User client error: {e}')
-            return ubot if ubot else Y
+            return Y
     return Y
 
 async def prog(c, t, C, h, m, st):

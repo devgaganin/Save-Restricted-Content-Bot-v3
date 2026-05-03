@@ -6,16 +6,22 @@ from telethon import TelegramClient
 from config import API_ID, API_HASH, BOT_TOKEN, STRING
 from pyrogram import Client
 import sys
+import os
 
 client = TelegramClient("telethonbot", API_ID, API_HASH)
 app = Client("pyrogrambot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-userbot = Client("4gbbot", api_id=API_ID, api_hash=API_HASH, session_string=STRING)
+if STRING:
+    userbot = Client("4gbbot", api_id=API_ID, api_hash=API_HASH, session_string=STRING)
+elif os.path.exists("vault_user.session"):
+    userbot = Client("vault_user", api_id=API_ID, api_hash=API_HASH)
+else:
+    userbot = None
 
 async def start_client():
     if not client.is_connected():
         await client.start(bot_token=BOT_TOKEN)
         print("SpyLib started...")
-    if STRING:
+    if userbot:
         try:
             await userbot.start()
             print("Userbot started...")
