@@ -1,3 +1,5 @@
+import time
+
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, InputMediaVideo
 
@@ -11,10 +13,25 @@ from utils.func import (
 )
 
 ACTIVE_VAULT_SENDS = set()
+RECENT_VAULT_SENDS = {}
+VAULT_SEND_COOLDOWN = 20
 
 
 def _is_owner(user_id: int) -> bool:
     return user_id in OWNER_ID
+
+
+def _is_recent_send(lock_key) -> bool:
+    now = time.time()
+    last = RECENT_VAULT_SENDS.get(lock_key)
+    if last and now - last < VAULT_SEND_COOLDOWN:
+        return True
+    RECENT_VAULT_SENDS.pop(lock_key, None)
+    return False
+
+
+def _mark_recent_send(lock_key):
+    RECENT_VAULT_SENDS[lock_key] = time.time()
 
 
 def _short_text(text: str, max_len: int = 40) -> str:
@@ -223,8 +240,8 @@ async def vault_callback_handler(_, callback):
 
     if action == "send":
         lock_key = ("send", callback.message.chat.id, access_key, page)
-        if lock_key in ACTIVE_VAULT_SENDS:
-            await callback.answer("Already sending this page.")
+        if lock_key in ACTIVE_VAULT_SENDS or _is_recent_send(lock_key):
+            await callback.answer("This page was just sent.")
             return
         ACTIVE_VAULT_SENDS.add(lock_key)
         await callback.answer("Sending page...")
@@ -235,6 +252,7 @@ async def vault_callback_handler(_, callback):
             await callback.message.reply_text(f"Sent page files: {sent}")
         finally:
             ACTIVE_VAULT_SENDS.discard(lock_key)
+            _mark_recent_send(lock_key)
         return
 
     if action == "codes":
@@ -250,8 +268,8 @@ async def vault_callback_handler(_, callback):
         return
 
     lock_key = ("all", callback.message.chat.id, access_key, 0)
-    if lock_key in ACTIVE_VAULT_SENDS:
-        await callback.answer("Already sending all files.")
+    if lock_key in ACTIVE_VAULT_SENDS or _is_recent_send(lock_key):
+        await callback.answer("All files were just sent.")
         return
     ACTIVE_VAULT_SENDS.add(lock_key)
     await callback.answer("Sending all files...")
@@ -260,6 +278,7 @@ async def vault_callback_handler(_, callback):
         await callback.message.reply_text(f"Sent all files: {sent}")
     finally:
         ACTIVE_VAULT_SENDS.discard(lock_key)
+        _mark_recent_send(lock_key)
 
 
 @app.on_message(filters.text & filters.private)
