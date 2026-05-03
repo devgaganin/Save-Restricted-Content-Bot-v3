@@ -77,6 +77,23 @@ def _is_visual(file_info: dict) -> bool:
     return mime.startswith("image") or mime.startswith("video")
 
 
+def _collect_media_group(files: list, start_idx: int) -> tuple[list, int]:
+    first = files[start_idx]
+    group_id = first.get("source_media_group_id")
+    if not group_id:
+        return [first], start_idx + 1
+
+    group = [first]
+    idx = start_idx + 1
+    while idx < len(files):
+        current = files[idx]
+        if current.get("source_media_group_id") != group_id:
+            break
+        group.append(current)
+        idx += 1
+    return group, idx
+
+
 async def _send_single_vault_file(chat_id: int, file_info: dict) -> bool:
     try:
         await app.copy_message(chat_id, file_info["storage_chat_id"], file_info["storage_message_id"])
@@ -117,26 +134,23 @@ async def _send_vault_files(chat_id: int, files: list) -> int:
     idx = 0
 
     while idx < len(files):
-        current = files[idx]
-        if _is_visual(current):
-            group = [current]
-            idx += 1
-            while idx < len(files) and len(group) < 10 and _is_visual(files[idx]):
-                group.append(files[idx])
-                idx += 1
-
-            if len(group) > 1 and await _send_visual_group(chat_id, group):
+        group, next_idx = _collect_media_group(files, idx)
+        if len(group) > 1 and len(group) <= 10 and all(_is_visual(item) for item in group):
+            if await _send_visual_group(chat_id, group):
                 sent += len(group)
+                idx = next_idx
                 continue
-
+        if len(group) > 1:
             for item in group:
                 if await _send_single_vault_file(chat_id, item):
                     sent += 1
+            idx = next_idx
             continue
 
+        current = group[0]
         if await _send_single_vault_file(chat_id, current):
             sent += 1
-        idx += 1
+        idx = next_idx
 
     return sent
 
