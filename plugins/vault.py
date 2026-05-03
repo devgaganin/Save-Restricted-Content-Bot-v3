@@ -111,7 +111,7 @@ async def _send_visual_group(chat_id: int, files: list) -> bool:
         return False
 
 
-async def _send_vault_files(chat_id: int, files: list) -> int:
+async def _send_vault_files(chat_id: int, files: list, strict_visual_groups: bool = False) -> int:
     files = _dedupe_files(files)
     visual_files = [item for item in files if _is_visual(item)]
     other_files = [item for item in files if not _is_visual(item)]
@@ -120,17 +120,29 @@ async def _send_vault_files(chat_id: int, files: list) -> int:
     idx = 0
     while idx < len(visual_files):
         group = visual_files[idx:idx + 10]
-        if len(group) >= 2 and await _send_visual_group(chat_id, group):
+        if len(group) >= 2:
+            if not await _send_visual_group(chat_id, group):
+                if strict_visual_groups:
+                    raise RuntimeError(f"Failed to send media group chunk starting at item {idx + 1}")
+                current = group[0]
+                if await _send_single_vault_file(chat_id, current):
+                    sent += 1
+                idx += 1
+                continue
             sent += len(group)
             idx += len(group)
             continue
 
         current = group[0]
+        if strict_visual_groups:
+            raise RuntimeError("Only one visual file left; cannot send it as a media group")
         if await _send_single_vault_file(chat_id, current):
             sent += 1
         idx += 1
 
     for item in other_files:
+        if strict_visual_groups:
+            raise RuntimeError("This collection page contains non-visual files; strict media-group mode refused single sends")
         if await _send_single_vault_file(chat_id, item):
             sent += 1
 
@@ -244,8 +256,10 @@ async def vault_callback_handler(_, callback):
         start_idx = (page - 1) * 10
         end_idx = start_idx + 10
         try:
-            sent = await _send_vault_files(callback.message.chat.id, files[start_idx:end_idx])
+            sent = await _send_vault_files(callback.message.chat.id, files[start_idx:end_idx], strict_visual_groups=True)
             await callback.message.reply_text(f"Sent page files: {sent}")
+        except Exception as e:
+            await callback.message.reply_text(f"Page send failed: {str(e)}")
         finally:
             ACTIVE_VAULT_SENDS.discard(lock_key)
             _mark_recent_send(lock_key)
@@ -270,8 +284,10 @@ async def vault_callback_handler(_, callback):
     ACTIVE_VAULT_SENDS.add(lock_key)
     await callback.answer("Sending all files...")
     try:
-        sent = await _send_vault_files(callback.message.chat.id, files)
+        sent = await _send_vault_files(callback.message.chat.id, files, strict_visual_groups=True)
         await callback.message.reply_text(f"Sent all files: {sent}")
+    except Exception as e:
+        await callback.message.reply_text(f"Send all failed: {str(e)}")
     finally:
         ACTIVE_VAULT_SENDS.discard(lock_key)
         _mark_recent_send(lock_key)
@@ -297,7 +313,7 @@ async def vault_key_handler(_, message):
 
     file_info = await get_vault_file_by_key(text)
     if file_info:
-        sent = await _send_vault_files(message.chat.id, [file_info])
+        sent = await _send_vault_files(message.chat.id, [file_info], strict_visual_groups=False)
         await message.reply_text(f"Sent {sent}/1 file.")
 
 
