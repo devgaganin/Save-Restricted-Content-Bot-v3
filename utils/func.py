@@ -9,6 +9,7 @@ import re
 import cv2
 import logging
 import asyncio
+import hashlib
 from datetime import datetime, timedelta
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import MONGO_DB as MONGO_URI, DB_NAME
@@ -41,6 +42,7 @@ def _generate_vault_key(prefix="file_store", length=24):
 async def ensure_vault_indexes():
     await vault_files_collection.create_index("access_key", unique=True)
     await vault_files_collection.create_index("file_id")
+    await vault_files_collection.create_index("content_hash")
     await vault_files_collection.create_index(
         [("collection_id", 1), ("storage_chat_id", 1), ("storage_message_id", 1)],
         unique=True
@@ -91,6 +93,7 @@ async def add_vault_file(
     caption="",
     storage_mode="telegram_vault",
     source_media_group_id=None,
+    content_hash=None,
 ):
     doc = {
         "collection_id": collection_id,
@@ -106,6 +109,7 @@ async def add_vault_file(
         "caption": caption or "",
         "storage_mode": storage_mode,
         "source_media_group_id": source_media_group_id,
+        "content_hash": content_hash,
         "created_at": datetime.now(),
     }
     existing = await vault_files_collection.find_one(
@@ -133,6 +137,15 @@ async def get_vault_file_by_key(access_key):
     return await vault_files_collection.find_one({"access_key": access_key})
 
 
+async def get_vault_file_by_hash(content_hash):
+    if not content_hash:
+        return None
+    return await vault_files_collection.find_one(
+        {"content_hash": content_hash, "storage_mode": "telegram_vault"},
+        sort=[("created_at", -1)]
+    )
+
+
 async def cache_source_file(source_chat_id, source_message_id, file_doc_id):
     await vault_source_cache_collection.update_one(
         {"source_chat_id": int(source_chat_id), "source_message_id": int(source_message_id)},
@@ -148,6 +161,19 @@ async def get_cached_source_file(source_chat_id, source_message_id):
     if not cache_doc:
         return None
     return await vault_files_collection.find_one({"_id": cache_doc["file_doc_id"]})
+
+
+async def compute_file_hash(file_path):
+    loop = asyncio.get_running_loop()
+
+    def _hash_file():
+        sha256 = hashlib.sha256()
+        with open(file_path, "rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                sha256.update(chunk)
+        return sha256.hexdigest()
+
+    return await loop.run_in_executor(None, _hash_file)
 
 # ------- < start > Session Encoder don't change -------
 

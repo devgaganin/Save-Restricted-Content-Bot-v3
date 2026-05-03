@@ -9,7 +9,7 @@ from pyrogram.errors import UserNotParticipant
 from config import API_ID, API_HASH, LOG_GROUP, STRING, FORCE_SUB, FREEMIUM_LIMIT, PREMIUM_LIMIT, STORAGE_CHANNEL_ID, OWNER_ID
 from utils.func import get_user_data, screenshot, thumbnail, get_video_metadata
 from utils.func import get_user_data_key, process_text_with_rules, is_premium_user, E
-from utils.func import create_vault_collection, add_vault_file, cache_source_file, get_cached_source_file
+from utils.func import create_vault_collection, add_vault_file, cache_source_file, get_cached_source_file, get_vault_file_by_hash, compute_file_hash
 from shared_client import app as X, userbot as Y
 from plugins.settings import rename_file
 from plugins.start import subscribe as sub
@@ -256,7 +256,7 @@ async def send_direct(c, m, tcid, ft=None, rtmid=None):
         print(f'Direct send error: {e}')
         return False
 
-async def archive_and_forward(c, m, local_file, target_chat_id, reply_to_message_id, caption_text, vault_collection, source_chat_id, deliver_now=True):
+async def archive_and_forward(c, m, local_file, target_chat_id, reply_to_message_id, caption_text, vault_collection, source_chat_id, deliver_now=True, content_hash=None):
     file_name = os.path.basename(local_file)
     file_ext = os.path.splitext(local_file)[1].lower()
     is_video = file_ext in ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ogv']
@@ -312,6 +312,7 @@ async def archive_and_forward(c, m, local_file, target_chat_id, reply_to_message
         caption=caption_text or "",
         storage_mode="telegram_vault",
         source_media_group_id=getattr(m, "media_group_id", None),
+        content_hash=content_hash,
     )
     await cache_source_file(source_chat_id, m.id, saved["_id"])
     if deliver_now:
@@ -336,6 +337,7 @@ async def replay_cached(c, cached_file, target_chat_id, reply_to_message_id, vau
             caption=cached_file.get("caption", ""),
             storage_mode=cached_file.get("storage_mode", "telegram_vault"),
             source_media_group_id=cached_file.get("source_media_group_id"),
+            content_hash=cached_file.get("content_hash"),
         )
     if deliver_now:
         await c.copy_message(target_chat_id, cached_file["storage_chat_id"], cached_file["storage_message_id"], reply_to_message_id=reply_to_message_id)
@@ -549,6 +551,24 @@ async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None, deliver_now
             
             fsize = os.path.getsize(f) / (1024 * 1024 * 1024)
             th = thumbnail(d)
+            content_hash = await compute_file_hash(f) if vault_collection and STORAGE_CHANNEL_ID else None
+
+            if vault_collection and STORAGE_CHANNEL_ID and content_hash:
+                hash_hit = await get_vault_file_by_hash(content_hash)
+                if hash_hit:
+                    await replay_cached(
+                        c,
+                        hash_hit,
+                        tcid,
+                        rtmid,
+                        vault_collection=vault_collection,
+                        deliver_now=deliver_now,
+                    )
+                    await cache_source_file(i, m.id, hash_hit["_id"])
+                    if os.path.exists(f):
+                        os.remove(f)
+                    await c.delete_messages(d, p.id)
+                    return 'Done (hash cache).' if deliver_now else 'Archived (hash cache).'
             
             if fsize > 2 and Y:
                 st = time.time()
@@ -593,6 +613,7 @@ async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None, deliver_now
                         caption=ft or "",
                         storage_mode="telegram_vault",
                         source_media_group_id=getattr(m, "media_group_id", None),
+                        content_hash=content_hash,
                     )
                     await cache_source_file(i, m.id, saved["_id"])
                     if deliver_now:
@@ -619,6 +640,7 @@ async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None, deliver_now
                         vault_collection=vault_collection,
                         source_chat_id=i,
                         deliver_now=deliver_now,
+                        content_hash=content_hash,
                     )
                     if os.path.exists(f):
                         os.remove(f)
