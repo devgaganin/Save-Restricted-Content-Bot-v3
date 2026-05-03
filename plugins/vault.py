@@ -1,4 +1,5 @@
 import time
+import re
 
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, InputMediaVideo
@@ -19,6 +20,11 @@ VAULT_SEND_COOLDOWN = 20
 
 def _is_owner(user_id: int) -> bool:
     return user_id in OWNER_ID
+
+
+def _extract_vault_key(text: str) -> str | None:
+    match = re.search(r"(file_store[A-Za-z0-9]+)", text or "")
+    return match.group(1) if match else None
 
 
 def _is_recent_send(lock_key) -> bool:
@@ -298,11 +304,11 @@ async def vault_key_handler(_, message):
     if not _is_owner(message.from_user.id):
         return
 
-    text = message.text.strip()
-    if not text.startswith("file_store"):
+    key = _extract_vault_key(message.text.strip())
+    if not key:
         return
 
-    collection = await get_vault_collection_by_key(text)
+    collection = await get_vault_collection_by_key(key)
     if collection:
         files = _dedupe_files(await get_vault_collection_files(collection["_id"]))
         if not files:
@@ -311,10 +317,13 @@ async def vault_key_handler(_, message):
         await _show_collection_page(message, collection, files, page=1, edit=False)
         return
 
-    file_info = await get_vault_file_by_key(text)
+    file_info = await get_vault_file_by_key(key)
     if file_info:
         sent = await _send_vault_files(message.chat.id, [file_info], strict_visual_groups=False)
         await message.reply_text(f"Sent {sent}/1 file.")
+        return
+
+    await message.reply_text(f"Key not found: `{key}`")
 
 
 async def run_vault_plugin():
