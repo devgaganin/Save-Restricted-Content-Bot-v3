@@ -41,6 +41,10 @@ def _generate_vault_key(prefix="file_store", length=24):
 async def ensure_vault_indexes():
     await vault_files_collection.create_index("access_key", unique=True)
     await vault_files_collection.create_index("file_id")
+    await vault_files_collection.create_index(
+        [("collection_id", 1), ("storage_chat_id", 1), ("storage_message_id", 1)],
+        unique=True
+    )
     await vault_collections_collection.create_index("access_key", unique=True)
     await vault_collections_collection.create_index([("owner_id", 1), ("name", 1)], unique=True)
     await vault_source_cache_collection.create_index([("source_chat_id", 1), ("source_message_id", 1)], unique=True)
@@ -86,8 +90,8 @@ async def add_vault_file(
     file_size,
     caption="",
     storage_mode="telegram_vault",
+    source_media_group_id=None,
 ):
-    access_key = _generate_vault_key()
     doc = {
         "collection_id": collection_id,
         "source_chat_id": int(source_chat_id),
@@ -101,9 +105,20 @@ async def add_vault_file(
         "file_size": file_size or 0,
         "caption": caption or "",
         "storage_mode": storage_mode,
-        "access_key": access_key,
+        "source_media_group_id": source_media_group_id,
         "created_at": datetime.now(),
     }
+    existing = await vault_files_collection.find_one(
+        {
+            "collection_id": collection_id,
+            "storage_chat_id": int(storage_chat_id),
+            "storage_message_id": int(storage_message_id),
+        }
+    )
+    if existing:
+        return existing
+
+    doc["access_key"] = _generate_vault_key()
     result = await vault_files_collection.insert_one(doc)
     doc["_id"] = result.inserted_id
     return doc

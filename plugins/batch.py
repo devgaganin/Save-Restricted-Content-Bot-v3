@@ -311,6 +311,7 @@ async def archive_and_forward(c, m, local_file, target_chat_id, reply_to_message
         file_size=file_size,
         caption=caption_text or "",
         storage_mode="telegram_vault",
+        source_media_group_id=getattr(m, "media_group_id", None),
     )
     await cache_source_file(source_chat_id, m.id, saved["_id"])
     if deliver_now:
@@ -334,6 +335,7 @@ async def replay_cached(c, cached_file, target_chat_id, reply_to_message_id, vau
             file_size=cached_file["file_size"],
             caption=cached_file.get("caption", ""),
             storage_mode=cached_file.get("storage_mode", "telegram_vault"),
+            source_media_group_id=cached_file.get("source_media_group_id"),
         )
     if deliver_now:
         await c.copy_message(target_chat_id, cached_file["storage_chat_id"], cached_file["storage_message_id"], reply_to_message_id=reply_to_message_id)
@@ -585,6 +587,7 @@ async def process_msg(c, u, m, d, lt, uid, i, vault_collection=None, deliver_now
                         file_size=os.path.getsize(f),
                         caption=ft or "",
                         storage_mode="telegram_vault",
+                        source_media_group_id=getattr(m, "media_group_id", None),
                     )
                     await cache_source_file(i, m.id, saved["_id"])
                     if deliver_now:

@@ -1,5 +1,5 @@
 from pyrogram import filters
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, InputMediaVideo
 
 from shared_client import app
 from config import OWNER_ID
@@ -17,7 +17,7 @@ def _is_owner(user_id: int) -> bool:
 
 def _short_text(text: str, max_len: int = 40) -> str:
     text = (text or "").replace("\n", " ").strip()
-    return text if len(text) <= max_len else text[: max_len - 1] + "…"
+    return text if len(text) <= max_len else text[: max_len - 1] + "..."
 
 
 def _human_size(size: int) -> str:
@@ -31,25 +31,93 @@ def _human_size(size: int) -> str:
     return f"{value:.2f} {units[idx]}"
 
 
-async def _send_vault_files(chat_id: int, files: list):
-    sent = 0
+def _dedupe_files(files: list) -> list:
+    unique = []
+    seen = set()
     for file_info in files:
-        try:
-            await app.copy_message(chat_id, file_info["storage_chat_id"], file_info["storage_message_id"])
-            sent += 1
+        key = (
+            file_info.get("storage_chat_id"),
+            file_info.get("storage_message_id"),
+            file_info.get("file_unique_id"),
+        )
+        if key in seen:
             continue
-        except Exception:
-            pass
+        seen.add(key)
+        unique.append(file_info)
+    return unique
 
-        try:
-            await app.send_cached_media(chat_id, file_info["file_id"], caption=file_info.get("caption") or "")
-            sent += 1
-        except Exception:
+
+def _is_visual(file_info: dict) -> bool:
+    mime = (file_info.get("mime_type") or "").lower()
+    return mime.startswith("image") or mime.startswith("video")
+
+
+async def _send_single_vault_file(chat_id: int, file_info: dict) -> bool:
+    try:
+        await app.copy_message(chat_id, file_info["storage_chat_id"], file_info["storage_message_id"])
+        return True
+    except Exception:
+        pass
+
+    try:
+        await app.send_cached_media(chat_id, file_info["file_id"], caption=file_info.get("caption") or "")
+        return True
+    except Exception:
+        return False
+
+
+async def _send_visual_group(chat_id: int, files: list) -> bool:
+    media = []
+    for index, file_info in enumerate(files):
+        mime = (file_info.get("mime_type") or "").lower()
+        caption = file_info.get("caption") or ""
+        caption = caption if index == 0 else ""
+        if mime.startswith("image"):
+            media.append(InputMediaPhoto(media=file_info["file_id"], caption=caption))
+        elif mime.startswith("video"):
+            media.append(InputMediaVideo(media=file_info["file_id"], caption=caption))
+        else:
+            return False
+
+    try:
+        await app.send_media_group(chat_id, media)
+        return True
+    except Exception:
+        return False
+
+
+async def _send_vault_files(chat_id: int, files: list) -> int:
+    files = _dedupe_files(files)
+    sent = 0
+    idx = 0
+
+    while idx < len(files):
+        current = files[idx]
+        if _is_visual(current):
+            group = [current]
+            idx += 1
+            while idx < len(files) and len(group) < 10 and _is_visual(files[idx]):
+                group.append(files[idx])
+                idx += 1
+
+            if len(group) > 1 and await _send_visual_group(chat_id, group):
+                sent += len(group)
+                continue
+
+            for item in group:
+                if await _send_single_vault_file(chat_id, item):
+                    sent += 1
             continue
+
+        if await _send_single_vault_file(chat_id, current):
+            sent += 1
+        idx += 1
+
     return sent
 
 
 async def _show_collection_page(message, collection, files, page=1, edit=False):
+    files = _dedupe_files(files)
     per_page = 10
     total_files = len(files)
     total_pages = max(1, (total_files + per_page - 1) // per_page)
@@ -60,8 +128,8 @@ async def _show_collection_page(message, collection, files, page=1, edit=False):
     page_files = files[start_idx:end_idx]
 
     lines = [
-        f"📁 **{collection['name']}**",
-        f"📄 {total_files} files (page {page}/{total_pages})",
+        f"Folder: {collection['name']}",
+        f"Files: {total_files} (page {page}/{total_pages})",
         "-------------------------",
     ]
     for item in page_files:
@@ -74,22 +142,22 @@ async def _show_collection_page(message, collection, files, page=1, edit=False):
             kind = "audio"
         else:
             kind = "file"
-        lines.append(f"• `{_short_text(item.get('file_name') or 'unnamed file')}`")
-        lines.append(f"  └ {kind} | {_human_size(item.get('file_size') or 0)}")
-    lines.append(f"🔑 `{collection['access_key']}`")
+        lines.append(f"- `{_short_text(item.get('file_name') or 'unnamed file')}`")
+        lines.append(f"  {kind} | {_human_size(item.get('file_size') or 0)}")
+    lines.append(f"Key: `{collection['access_key']}`")
     text = "\n".join(lines)
 
     buttons = [
-        [InlineKeyboardButton(f"⬇️ Send This Page ({len(page_files)})", callback_data=f"vault_send_{collection['access_key']}_{page}")]
+        [InlineKeyboardButton(f"Send This Page ({len(page_files)})", callback_data=f"vault_send_{collection['access_key']}_{page}")]
     ]
     if total_files > per_page:
-        buttons.append([InlineKeyboardButton(f"🚀 Send All ({total_files})", callback_data=f"vault_all_{collection['access_key']}")])
+        buttons.append([InlineKeyboardButton(f"Send All ({total_files})", callback_data=f"vault_all_{collection['access_key']}")])
 
     nav = []
     if page > 1:
-        nav.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"vault_page_{collection['access_key']}_{page-1}"))
+        nav.append(InlineKeyboardButton("Prev", callback_data=f"vault_page_{collection['access_key']}_{page-1}"))
     if page < total_pages:
-        nav.append(InlineKeyboardButton("Next ➡️", callback_data=f"vault_page_{collection['access_key']}_{page+1}"))
+        nav.append(InlineKeyboardButton("Next", callback_data=f"vault_page_{collection['access_key']}_{page+1}"))
     if nav:
         buttons.append(nav)
 
@@ -111,12 +179,12 @@ async def mycollections_handler(_, message):
         await message.reply_text("No collections yet.")
         return
 
-    lines = ["📁 **My Collections**\n"]
+    lines = ["My Collections\n"]
     for col in collections[:30]:
-        files = await get_vault_collection_files(col["_id"])
-        lines.append(f"• **{col['name']}**")
-        lines.append(f"  🔑 `{col['access_key']}`")
-        lines.append(f"  📄 {len(files)} files\n")
+        files = _dedupe_files(await get_vault_collection_files(col["_id"]))
+        lines.append(f"- {col['name']}")
+        lines.append(f"  Key: `{col['access_key']}`")
+        lines.append(f"  Files: {len(files)}\n")
     await message.reply_text("\n".join(lines))
 
 
@@ -135,7 +203,7 @@ async def vault_callback_handler(_, callback):
     if not collection:
         await callback.answer("Collection not found.", show_alert=True)
         return
-    files = await get_vault_collection_files(collection["_id"])
+    files = _dedupe_files(await get_vault_collection_files(collection["_id"]))
 
     if action == "page":
         await _show_collection_page(callback.message, collection, files, page=page, edit=True)
@@ -164,9 +232,9 @@ async def vault_key_handler(_, message):
 
     collection = await get_vault_collection_by_key(text)
     if collection:
-        files = await get_vault_collection_files(collection["_id"])
+        files = _dedupe_files(await get_vault_collection_files(collection["_id"]))
         if not files:
-            await message.reply_text(f"📁 {collection['name']}\n\nNo files in this collection.")
+            await message.reply_text(f"{collection['name']}\n\nNo files in this collection.")
             return
         await _show_collection_page(message, collection, files, page=1, edit=False)
         return
