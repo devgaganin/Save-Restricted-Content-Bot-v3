@@ -9,24 +9,35 @@ from pyrogram.types import BotCommand, InlineKeyboardButton, InlineKeyboardMarku
 from config import LOG_GROUP, OWNER_ID, FORCE_SUB
 
 async def subscribe(app, message):
-    if FORCE_SUB:
+    if not FORCE_SUB or FORCE_SUB == 0:
+        return 0
+    
+    if not message.from_user:
+        return 1
+        
+    try:
+        user = await app.get_chat_member(FORCE_SUB, message.from_user.id)
+        if str(user.status) == "ChatMemberStatus.BANNED":
+            await message.reply_text("You are Banned. Contact -- Team SPY")
+            return 1
+    except UserNotParticipant:
         try:
-          user = await app.get_chat_member(FORCE_SUB, message.from_user.id)
-          if str(user.status) == "ChatMemberStatus.BANNED":
-              await message.reply_text("You are Banned. Contact -- Team SPY")
-              return 1
-        except UserNotParticipant:
             link = await app.export_chat_invite_link(FORCE_SUB)
             caption = f"Join our channel to use the bot"
             await message.reply_photo(photo="https://graph.org/file/d44f024a08ded19452152.jpg",caption=caption, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Join Now...", url=f"{link}")]]))
             return 1
-        except Exception as ggn:
-            await message.reply_text(f"Something Went Wrong. Contact admins... with following message {ggn}")
-            return 1 
+        except Exception:
+            await message.reply_text("Please join the required channel to use this bot.")
+            return 1
+    except Exception as ggn:
+        print(f"Error in subscribe check: {ggn}")
+        return 0
+    
+    return 0
      
 @app.on_message(filters.command("set"))
 async def set(_, message):
-    if message.from_user.id not in OWNER_ID:
+    if not message.from_user or message.from_user.id not in OWNER_ID:
         await message.reply("You are not authorized to use this command.")
         return
      
@@ -38,14 +49,8 @@ async def set(_, message):
         BotCommand("logout", "🚪 Get out of the bot"),
         BotCommand("adl", "👻 Download audio from 30+ sites"),
         BotCommand("dl", "💀 Download videos from 30+ sites"),
-        BotCommand("status", "⟳ Refresh Payment status"),
-        BotCommand("transfer", "💘 Gift premium to others"),
-        BotCommand("add", "➕ Add user to premium"),
-        BotCommand("rem", "➖ Remove from premium"),
         BotCommand("rembot", "🤨 Remove your custom bot"),
         BotCommand("settings", "⚙️ Personalize things"),
-        BotCommand("plan", "🗓️ Check our premium plans"),
-        BotCommand("terms", "🥺 Terms and conditions"),
         BotCommand("help", "❓ If you're a noob, still!"),
         BotCommand("cancel", "🚫 Cancel login/batch/settings process"),
         BotCommand("stop", "🚫 Cancel batch process")
@@ -59,51 +64,42 @@ async def set(_, message):
 help_pages = [
     (
         "📝 **Bot Commands Overview (1/2)**:\n\n"
-        "1. **/add userID**\n"
-        "> Add user to premium (Owner only)\n\n"
-        "2. **/rem userID**\n"
-        "> Remove user from premium (Owner only)\n\n"
-        "3. **/transfer userID**\n"
-        "> Transfer premium to your beloved major purpose for resellers (Premium members only)\n\n"
-        "4. **/get**\n"
-        "> Get all user IDs (Owner only)\n\n"
-        "5. **/lock**\n"
-        "> Lock channel from extraction (Owner only)\n\n"
-        "6. **/dl link**\n"
-        "> Download videos (Not available in v3 if you are using)\n\n"
-        "7. **/adl link**\n"
-        "> Download audio (Not available in v3 if you are using)\n\n"
-        "8. **/login**\n"
+        "1. **/login**\n"
         "> Log into the bot for private channel access\n\n"
-        "9. **/batch**\n"
-        "> Bulk extraction for posts (After login)\n\n"
+        "2. **/logout**\n"
+        "> Logout from the bot\n\n"
+        "3. **/batch**\n"
+        "> Bulk extraction for posts (Free for all users, limit: 1000)\n\n"
+        "4. **/single**\n"
+        "> Process a single message link\n\n"
+        "5. **/dl link**\n"
+        "> Download videos from 30+ sites\n\n"
+        "6. **/adl link**\n"
+        "> Download audio from 30+ sites\n\n"
+        "7. **/setbot**\n"
+        "> Add your custom bot for handling files\n\n"
+        "8. **/rembot**\n"
+        "> Remove your custom bot\n\n"
     ),
     (
         "📝 **Bot Commands Overview (2/2)**:\n\n"
-        "10. **/logout**\n"
-        "> Logout from the bot\n\n"
-        "11. **/stats**\n"
-        "> Get bot stats\n\n"
-        "12. **/plan**\n"
-        "> Check premium plans\n\n"
-        "13. **/speedtest**\n"
-        "> Test the server speed (not available in v3)\n\n"
-        "14. **/terms**\n"
-        "> Terms and conditions\n\n"
-        "15. **/cancel**\n"
-        "> Cancel ongoing batch process\n\n"
-        "16. **/myplan**\n"
-        "> Get details about your plans\n\n"
-        "17. **/session**\n"
+        "9. **/session**\n"
         "> Generate Pyrogram V2 session\n\n"
-        "18. **/settings**\n"
-        "> 1. SETCHATID : To directly upload in channel or group or user's dm use it with -100[chatID]\n"
-        "> 2. SETRENAME : To add custom rename tag or username of your channels\n"
-        "> 3. CAPTION : To add custom caption\n"
-        "> 4. REPLACEWORDS : Can be used for words in deleted set via REMOVE WORDS\n"
-        "> 5. RESET : To set the things back to default\n\n"
-        "> You can set CUSTOM THUMBNAIL, PDF WATERMARK, VIDEO WATERMARK, SESSION-based login, etc. from settings\n\n"
-        "**__Powered by Team SPY__**"
+        "10. **/settings**\n"
+        "> Personalize bot settings:\n"
+        "> • SETCHATID: Upload directly to channel/group/DM\n"
+        "> • SETRENAME: Add custom rename tag\n"
+        "> • CAPTION: Add custom caption\n"
+        "> • REPLACEWORDS: Replace words in filenames\n"
+        "> • RESET: Reset to default settings\n\n"
+        "11. **/stats**\n"
+        "> Get bot statistics\n\n"
+        "12. **/cancel** or **/stop**\n"
+        "> Cancel ongoing batch process\n\n"
+        "13. **/help**\n"
+        "> Show this help message\n\n"
+        "**__Powered by Team SPY__**\n"
+        "**All features are FREE!**"
     )
 ]
  
@@ -158,78 +154,4 @@ async def on_help_navigation(client, callback_query):
      
     await callback_query.answer()
 
- 
-@app.on_message(filters.command("terms") & filters.private)
-async def terms(client, message):
-    terms_text = (
-        "> 📜 **Terms and Conditions** 📜\n\n"
-        "✨ We are not responsible for user deeds, and we do not promote copyrighted content. If any user engages in such activities, it is solely their responsibility.\n"
-        "✨ Upon purchase, we do not guarantee the uptime, downtime, or the validity of the plan. __Authorization and banning of users are at our discretion; we reserve the right to ban or authorize users at any time.__\n"
-        "✨ Payment to us **__does not guarantee__** authorization for the /batch command. All decisions regarding authorization are made at our discretion and mood.\n"
-    )
-     
-    buttons = InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton("📋 See Plans", callback_data="see_plan")],
-            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/kingofpatal")],
-        ]
-    )
-    await message.reply_text(terms_text, reply_markup=buttons)
- 
- 
-@app.on_message(filters.command("plan") & filters.private)
-async def plan(client, message):
-    plan_text = (
-        "> 💰 **Premium Price**:\n\n Starting from $2 or 200 INR accepted via **__Amazon Gift Card__** (terms and conditions apply).\n"
-        "📥 **Download Limit**: Users can download up to 100,000 files in a single batch command.\n"
-        "🛑 **Batch**: You will get two modes /bulk and /batch.\n"
-        "   - Users are advised to wait for the process to automatically cancel before proceeding with any downloads or uploads.\n\n"
-        "📜 **Terms and Conditions**: For further details and complete terms and conditions, please send /terms.\n"
-    )
-     
-    buttons = InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton("📜 See Terms", callback_data="see_terms")],
-            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/kingofpatal")],
-        ]
-    )
-    await message.reply_text(plan_text, reply_markup=buttons)
- 
- 
-@app.on_callback_query(filters.regex("see_plan"))
-async def see_plan(client, callback_query):
-    plan_text = (
-        "> 💰**Premium Price**\n\n Starting from $2 or 200 INR accepted via **__Amazon Gift Card__** (terms and conditions apply).\n"
-        "📥 **Download Limit**: Users can download up to 100,000 files in a single batch command.\n"
-        "🛑 **Batch**: You will get two modes /bulk and /batch.\n"
-        "   - Users are advised to wait for the process to automatically cancel before proceeding with any downloads or uploads.\n\n"
-        "📜 **Terms and Conditions**: For further details and complete terms and conditions, please send /terms or click See Terms👇\n"
-    )
-     
-    buttons = InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton("📜 See Terms", callback_data="see_terms")],
-            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/kingofpatal")],
-        ]
-    )
-    await callback_query.message.edit_text(plan_text, reply_markup=buttons)
- 
- 
-@app.on_callback_query(filters.regex("see_terms"))
-async def see_terms(client, callback_query):
-    terms_text = (
-        "> 📜 **Terms and Conditions** 📜\n\n"
-        "✨ We are not responsible for user deeds, and we do not promote copyrighted content. If any user engages in such activities, it is solely their responsibility.\n"
-        "✨ Upon purchase, we do not guarantee the uptime, downtime, or the validity of the plan. __Authorization and banning of users are at our discretion; we reserve the right to ban or authorize users at any time.__\n"
-        "✨ Payment to us **__does not guarantee__** authorization for the /batch command. All decisions regarding authorization are made at our discretion and mood.\n"
-    )
-     
-    buttons = InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton("📋 See Plans", callback_data="see_plan")],
-            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/kingofpatal")],
-        ]
-    )
-    await callback_query.message.edit_text(terms_text, reply_markup=buttons)
- 
  

@@ -34,6 +34,10 @@ async def p(c, m):
     
 @app.on_callback_query(f.regex("^p_"))
 async def i(c, q):
+    if not q.from_user:
+        await q.answer("Error: Invalid user", show_alert=True)
+        return
+        
     pl = q.data.split("_")[1]
     pi = P0[pl]
     try:
@@ -55,8 +59,9 @@ async def pc(c, q: Q):
 
 @app.on_message(f.successful_payment)
 async def sp(c, m):
+    from config import OWNER_ID
     p = m.successful_payment
-    u = m.from_user.id
+    u = m.from_user.id if m.from_user else 0
     pl = p.invoice_payload.split("_")[0]
     pi = P0[pl]
     ok, r = await apu(u, pi['du'], pi['u'])
@@ -70,15 +75,21 @@ async def sp(c, m):
             f"⏰ Till: {d} IST\n"
             f"🔖 Txn: `{p.telegram_payment_charge_id}`"
         )
-        for o in OWNER_ID:
-            await c.send_message(f"User {u} just purchased the premium, txn id is {p.telegram_payment_charge_id}.")
+        if OWNER_ID:
+            for o in OWNER_ID:
+                try:
+                    await c.send_message(o, f"User {u} just purchased the premium, txn id is {p.telegram_payment_charge_id}.")
+                except Exception:
+                    pass
     else:
         await m.reply_text(
             f"⚠️ Paid but premium failed.\nTxn `{p.telegram_payment_charge_id}`"
         )
-        for o in OWNER_ID:
-            await c.send_message(o,
-                f"⚠️ Issue!\nUser {u}\nPlan {pi['l']}\nTxn {p.telegram_payment_charge_id}\nErr {r}"
-            )
-
-
+        if OWNER_ID:
+            for o in OWNER_ID:
+                try:
+                    await c.send_message(o,
+                        f"⚠️ Issue!\nUser {u}\nPlan {pi['l']}\nTxn {p.telegram_payment_charge_id}\nErr {r}"
+                    )
+                except Exception:
+                    pass

@@ -6,9 +6,9 @@ import os, re, time, asyncio, json, asyncio
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from pyrogram.errors import UserNotParticipant
-from config import API_ID, API_HASH, LOG_GROUP, STRING, FORCE_SUB, FREEMIUM_LIMIT, PREMIUM_LIMIT
+from config import API_ID, API_HASH, LOG_GROUP, STRING, FORCE_SUB
 from utils.func import get_user_data, screenshot, thumbnail, get_video_metadata
-from utils.func import get_user_data_key, process_text_with_rules, is_premium_user, E
+from utils.func import get_user_data_key, process_text_with_rules, E
 from shared_client import app as X
 from plugins.settings import rename_file
 from plugins.start import subscribe as sub
@@ -86,7 +86,17 @@ async def upd_dlg(c):
         return False
 
 # fixed the old group of 2021-2022 extraction 🌝 (buy krne ka fayda nhi ab old group) ✅ 
-async def get_msg(c, u, i, d, lt):
+async def get_msg(c, u, i, d, lt, topic_id=None):
+    """
+    Fetch a message from Telegram.
+    Args:
+        c: Bot client
+        u: User client
+        i: Chat ID
+        d: Message ID
+        lt: Link type ('public' or 'private')
+        topic_id: Optional topic/forum ID for supergroup topics
+    """
     try:
         if lt == 'public':
             try:
@@ -395,9 +405,6 @@ async def process_cmd(c, m):
     uid = m.from_user.id
     cmd = m.command[0]
     
-    if FREEMIUM_LIMIT == 0 and not await is_premium_user(uid):
-        await m.reply_text("This bot does not provide free servies, get subscription from OWNER")
-        return
     
     if await sub(c, m) == 1: return
     pro = await m.reply_text('Doing some checks hold on...')
@@ -427,7 +434,7 @@ async def cancel_cmd(c, m):
 
 @X.on_message(filters.text & filters.private & ~login_in_progress & ~filters.command([
     'start', 'batch', 'cancel', 'login', 'logout', 'stop', 'set', 
-    'pay', 'redeem', 'gencode', 'single', 'generate', 'keyinfo', 'encrypt', 'decrypt', 'keys', 'setbot', 'rembot']))
+    'help', 'terms', 'plan', 'single', 'generate', 'keyinfo', 'encrypt', 'decrypt', 'keys', 'setbot', 'rembot']))
 async def text_handler(c, m):
     uid = m.from_user.id
     if uid not in Z: return
@@ -439,24 +446,25 @@ async def text_handler(c, m):
 
     if s == 'start':
         L = m.text
-        i, d, lt = E(L)
+        i, d, lt, subgroup = E(L)
         if not i or not d:
             await m.reply_text('Invalid link format.')
             Z.pop(uid, None)
             return
-        Z[uid].update({'step': 'count', 'cid': i, 'sid': d, 'lt': lt})
+        Z[uid].update({'step': 'count', 'cid': i, 'sid': d, 'lt': lt, 'subgroup': subgroup})
         await m.reply_text('How many messages?')
 
     elif s == 'start_single':
         L = m.text
-        i, d, lt = E(L)
+        i, d, lt, subgroup = E(L)
         if not i or not d:
             await m.reply_text('Invalid link format.')
             Z.pop(uid, None)
             return
 
-        Z[uid].update({'step': 'process_single', 'cid': i, 'sid': d, 'lt': lt})
+        Z[uid].update({'step': 'process_single', 'cid': i, 'sid': d, 'lt': lt, 'subgroup': subgroup})
         i, s, lt = Z[uid]['cid'], Z[uid]['sid'], Z[uid]['lt']
+        subgroup = Z[uid].get('subgroup')
         pt = await m.reply_text('Processing...')
         
         ubot = UB.get(uid)
@@ -477,12 +485,19 @@ async def text_handler(c, m):
             return
 
         try:
-            msg = await get_msg(ubot, uc, i, s, lt)
+            # Handle range or single message
+            if isinstance(s, tuple):
+                start_msg, end_msg = s
+                msg_id = start_msg
+            else:
+                msg_id = s
+            
+            msg = await get_msg(ubot, uc, i, msg_id, lt, subgroup)
             if msg:
                 res = await process_msg(ubot, uc, msg, str(m.chat.id), lt, uid, i)
                 await pt.edit(f'1/1: {res}')
             else:
-                await pt.edit('Message not found')
+                await pt.edit(f'Message {msg_id} not found. Make sure you have access to this channel/group.')
         except Exception as e:
             await pt.edit(f'Error: {str(e)[:50]}')
         finally:
@@ -494,7 +509,7 @@ async def text_handler(c, m):
             return
         
         count = int(m.text)
-        maxlimit = PREMIUM_LIMIT if await is_premium_user(uid) else FREEMIUM_LIMIT
+        maxlimit = 1000
 
         if count > maxlimit:
             await m.reply_text(f'Maximum limit is {maxlimit}.')
@@ -502,14 +517,20 @@ async def text_handler(c, m):
 
         Z[uid].update({'step': 'process', 'did': str(m.chat.id), 'num': count})
         i, s, n, lt = Z[uid]['cid'], Z[uid]['sid'], Z[uid]['num'], Z[uid]['lt']
+        subgroup = Z[uid].get('subgroup')
         success = 0
 
         pt = await m.reply_text('Processing batch...')
         uc = await get_uclient(uid)
         ubot = UB.get(uid)
         
-        if not uc or not ubot:
-            await pt.edit('Missing client setup')
+        if not uc:
+            await pt.edit('❌ User client not found.\n\nFor private channels/groups, use /login to authenticate first.')
+            Z.pop(uid, None)
+            return
+        
+        if not ubot:
+            await pt.edit('❌ Bot not configured.\n\nUse /setbot to add your custom bot token.')
             Z.pop(uid, None)
             return
             
@@ -517,6 +538,15 @@ async def text_handler(c, m):
             await pt.edit('Active task exists')
             Z.pop(uid, None)
             return
+        
+        # Handle range vs single message + count
+        if isinstance(s, tuple):
+            start_msg, end_msg = s
+            message_ids = list(range(start_msg, end_msg + 1))
+            n = len(message_ids)
+        else:
+            start_msg = s
+            message_ids = list(range(start_msg, start_msg + n))
         
         await add_active_batch(uid, {
             "total": n,
@@ -527,7 +557,7 @@ async def text_handler(c, m):
             })
         
         try:
-            for j in range(n):
+            for j, mid in enumerate(message_ids):
                 
                 if should_cancel(uid):
                     await pt.edit(f'Cancelled at {j}/{n}. Success: {success}')
@@ -535,24 +565,56 @@ async def text_handler(c, m):
                 
                 await update_batch_progress(uid, j, success)
                 
-                mid = int(s) + j
-                
                 try:
-                    msg = await get_msg(ubot, uc, i, mid, lt)
+                    print(f"Fetching message: chat_id={i}, msg_id={mid}, type={lt}, topic={subgroup}")
+                    msg = await get_msg(ubot, uc, i, mid, lt, subgroup)
                     if msg:
+                        # Check if message is empty
+                        if getattr(msg, "empty", False):
+                            print(f"Message {mid} is empty, skipping...")
+                            continue
+                        
+                        # Filter by topic/sub-group if specified
+                        if subgroup is not None:
+                            # Check if message belongs to the specified topic
+                            # Pyrogram exposes forum_topic_id for forum/topic messages
+                            msg_topic_id = getattr(msg, 'forum_topic_id', None) or getattr(msg, 'reply_to_top_message_id', None)
+                            
+                            # Accept if: message IS the topic, OR message belongs to the topic
+                            if msg.id != subgroup and msg_topic_id != subgroup:
+                                print(f"Message {mid} (forum_topic_id={msg_topic_id}) not in topic {subgroup}, skipping...")
+                                continue
+                            print(f"Message {mid} belongs to topic {subgroup} ✓")
+                        
                         res = await process_msg(ubot, uc, msg, str(m.chat.id), lt, uid, i)
+                        print(f"Message {mid} result: {res}")
                         if 'Done' in res or 'Copied' in res or 'Sent' in res:
                             success += 1
+                        
+                        # Update progress every 5 messages
+                        if (j + 1) % 5 == 0:
+                            try:
+                                await pt.edit(f'Progress: {j+1}/{n} | Success: {success}')
+                            except:
+                                pass
                     else:
-                        pass
+                        print(f"Message {mid} not found - check if you have access to this channel")
+                        # Update progress with warning
+                        if (j + 1) % 5 == 0:
+                            try:
+                                await pt.edit(f'Progress: {j+1}/{n} | Success: {success} | Not found: {j+1-success}')
+                            except:
+                                pass
                 except Exception as e:
-                    try: await pt.edit(f'{j+1}/{n}: Error - {str(e)[:30]}')
-                    except: pass
+                    print(f"Error processing message {mid}: {str(e)}")
+                    try: 
+                        await pt.edit(f'{j+1}/{n}: Error - {str(e)[:30]}')
+                    except: 
+                        pass
                 
                 await asyncio.sleep(10)
             
-            if j+1 == n:
-                await m.reply_text(f'Batch Completed ✅ Success: {success}/{n}')
+            await m.reply_text(f'Batch Completed ✅ Success: {success}/{n}')
         
         finally:
             await remove_active_batch(uid)

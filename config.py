@@ -1,7 +1,3 @@
-# Copyright (c) 2025 devgagan : https://github.com/devgaganin.
-# Licensed under the GNU General Public License v3.0.
-# See LICENSE file in the repository root for full license text.
-
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -27,10 +23,10 @@ MONGO_DB     = os.getenv("MONGO_DB", "")
 DB_NAME      = os.getenv("DB_NAME", "telegram_downloader")
 
 # ─── OWNER / CONTROL SETTINGS ───────────────────────────────────────────────────
-OWNER_ID     = list(map(int, os.getenv("OWNER_ID", "").split()))  # space-separated list
+OWNER_ID     = list(map(int, os.getenv("OWNER_ID", "").split())) if os.getenv("OWNER_ID", "") else []
 STRING       = os.getenv("STRING", None)  # optional session string
-LOG_GROUP    = int(os.getenv("LOG_GROUP", "-1001234456"))
-FORCE_SUB    = int(os.getenv("FORCE_SUB", "-10012345567"))
+LOG_GROUP    = int(os.getenv("LOG_GROUP", "0")) if os.getenv("LOG_GROUP") else 0
+FORCE_SUB    = int(os.getenv("FORCE_SUB", "0")) if os.getenv("FORCE_SUB") else 0
 
 # ─── SECURITY KEYS ──────────────────────────────────────────────────────────────
 MASTER_KEY   = os.getenv("MASTER_KEY", "gK8HzLfT9QpViJcYeB5wRa3DmN7P2xUq")  # session encryption

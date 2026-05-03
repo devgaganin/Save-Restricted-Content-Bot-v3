@@ -57,15 +57,55 @@ def hhmmss(seconds):
 
 
 def E(L):   
-    private_match = re.match(r'https://t\.me/c/(\d+)/(?:\d+/)?(\d+)', L)
-    public_match = re.match(r'https://t\.me/([^/]+)/(?:\d+/)?(\d+)', L)
+    """
+    Extract Telegram link information with support for:
+    - Sub-group/Topic IDs: https://t.me/c/3181292229/76838/84203
+    - Ranges: https://t.me/c/3181292229/76838/84203-84206
+    - Normal links: https://t.me/c/3181292229/17575
+    - Supports http://, https://, telegram.me, t.me
     
-    if private_match:
-        return f'-100{private_match.group(1)}', int(private_match.group(2)), 'private'
-    elif public_match:
-        return public_match.group(1), int(public_match.group(2)), 'public'
+    Returns: (chat_id, message_id/range, link_type, topic_id)
+    """
+    # Normalize the link to handle various formats
+    L = L.strip().rstrip('/')
     
-    return None, None, None
+    # Private link with topic/sub-group and optional range: (http(s)://)(t.me|telegram.me)/c/CHAT/TOPIC/MSG(-MSG2)
+    private_topic = re.match(r'(?:https?://)?(?:t\.me|telegram\.me)/c/(\d+)/(\d+)/(\d+)(?:-(\d+))?', L)
+    # Private link without topic: (http(s)://)(t.me|telegram.me)/c/CHAT/MSG(-MSG2)
+    private_normal = re.match(r'(?:https?://)?(?:t\.me|telegram\.me)/c/(\d+)/(\d+)(?:-(\d+))?$', L)
+    # Public link with topic: (http(s)://)(t.me|telegram.me)/USERNAME/TOPIC/MSG(-MSG2)
+    public_topic = re.match(r'(?:https?://)?(?:t\.me|telegram\.me)/([^/]+)/(\d+)/(\d+)(?:-(\d+))?', L)
+    # Public link without topic: (http(s)://)(t.me|telegram.me)/USERNAME/MSG(-MSG2)
+    public_normal = re.match(r'(?:https?://)?(?:t\.me|telegram\.me)/([^/]+)/(\d+)(?:-(\d+))?$', L)
+    
+    if private_topic:
+        chat_id = f'-100{private_topic.group(1)}'
+        topic_id = int(private_topic.group(2))
+        start_msg = int(private_topic.group(3))
+        end_msg = int(private_topic.group(4)) if private_topic.group(4) else None
+        msg_range = (start_msg, end_msg) if end_msg else start_msg
+        return chat_id, msg_range, 'private', topic_id
+    elif private_normal:
+        chat_id = f'-100{private_normal.group(1)}'
+        start_msg = int(private_normal.group(2))
+        end_msg = int(private_normal.group(3)) if private_normal.group(3) else None
+        msg_range = (start_msg, end_msg) if end_msg else start_msg
+        return chat_id, msg_range, 'private', None
+    elif public_topic:
+        chat_id = public_topic.group(1)
+        topic_id = int(public_topic.group(2))
+        start_msg = int(public_topic.group(3))
+        end_msg = int(public_topic.group(4)) if public_topic.group(4) else None
+        msg_range = (start_msg, end_msg) if end_msg else start_msg
+        return chat_id, msg_range, 'public', topic_id
+    elif public_normal:
+        chat_id = public_normal.group(1)
+        start_msg = int(public_normal.group(2))
+        end_msg = int(public_normal.group(3)) if public_normal.group(3) else None
+        msg_range = (start_msg, end_msg) if end_msg else start_msg
+        return chat_id, msg_range, 'public', None
+    
+    return None, None, None, None
 
 
 def get_display_name(user):
@@ -194,8 +234,9 @@ async def process_text_with_rules(user_id, text):
         delete_words = await get_user_data_key(user_id, "delete_words", [])
         
         processed_text = text
-        for word, replacement in replacements.items():
-            processed_text = processed_text.replace(word, replacement)
+        if replacements and isinstance(replacements, dict):
+            for word, replacement in replacements.items():
+                processed_text = processed_text.replace(word, replacement)
         
         if delete_words:
             words = processed_text.split()

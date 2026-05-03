@@ -25,17 +25,11 @@ async def main():
         await asyncio.sleep(1)  
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
     print("Starting clients ...")
     try:
-        loop.run_until_complete(main())
+        asyncio.run(main())
     except KeyboardInterrupt:
         print("Shutting down...")
     except Exception as e:
-        print(e)
+        print(f"Error: {e}")
         sys.exit(1)
-    finally:
-        try:
-            loop.close()
-        except Exception:
-            pass
