@@ -35,11 +35,17 @@ def _dedupe_files(files: list) -> list:
     unique = []
     seen = set()
     for file_info in files:
-        key = (
-            file_info.get("storage_chat_id"),
-            file_info.get("storage_message_id"),
-            file_info.get("file_unique_id"),
-        )
+        file_unique_id = file_info.get("file_unique_id")
+        if file_unique_id:
+            key = ("file_unique_id", file_unique_id)
+        else:
+            key = (
+                "storage_message",
+                file_info.get("storage_chat_id"),
+                file_info.get("storage_message_id"),
+                file_info.get("file_name"),
+                file_info.get("file_size"),
+            )
         if key in seen:
             continue
         seen.add(key)

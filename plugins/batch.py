@@ -387,7 +387,7 @@ async def run_batch_request(c, m, uid, ubot, uc, source_chat, start_msg_id, coun
                         vault_collection=collection,
                         deliver_now=False,
                     )
-                    if 'Done' in res or 'Copied' in res or 'Sent' in res:
+                    if 'Done' in res or 'Copied' in res or 'Sent' in res or 'Archived' in res:
                         success += 1
             except Exception as e:
                 try:
@@ -398,14 +398,19 @@ async def run_batch_request(c, m, uid, ubot, uc, source_chat, start_msg_id, coun
             await asyncio.sleep(10)
 
         suffix = ""
+        display_success = success
         if collection:
+            from plugins.vault import _dedupe_files
+            from utils.func import get_vault_collection_files
+            files = _dedupe_files(await get_vault_collection_files(collection["_id"]))
+            display_success = len(files)
             suffix = f"\n🔑 Collection key: `{collection['access_key']}`"
-        await m.reply_text(f'Batch Completed ✅ Success: {success}/{count}{suffix}')
+        await m.reply_text(f'Batch Completed ✅ Success: {display_success}/{count}{suffix}')
         if collection:
             try:
                 from plugins.vault import _show_collection_page
                 from utils.func import get_vault_collection_files
-                files = await get_vault_collection_files(collection["_id"])
+                files = _dedupe_files(await get_vault_collection_files(collection["_id"]))
                 if files:
                     await _show_collection_page(m, collection, files, page=1, edit=False)
             except Exception:
