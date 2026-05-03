@@ -26,6 +26,128 @@ users_collection = db["users"]
 premium_users_collection = db["premium_users"]
 statistics_collection = db["statistics"]
 codedb = db["redeem_code"]
+vault_files_collection = db["vault_files"]
+vault_collections_collection = db["vault_collections"]
+vault_source_cache_collection = db["vault_source_cache"]
+
+
+def _generate_vault_key(prefix="file_store", length=24):
+    import secrets
+    import string
+    chars = string.ascii_letters + string.digits
+    return prefix + "".join(secrets.choice(chars) for _ in range(length))
+
+
+async def ensure_vault_indexes():
+    await vault_files_collection.create_index("access_key", unique=True)
+    await vault_files_collection.create_index("file_id")
+    await vault_files_collection.create_index(
+        [("collection_id", 1), ("storage_chat_id", 1), ("storage_message_id", 1)],
+        unique=True
+    )
+    await vault_collections_collection.create_index("access_key", unique=True)
+    await vault_collections_collection.create_index([("owner_id", 1), ("name", 1)], unique=True)
+    await vault_source_cache_collection.create_index([("source_chat_id", 1), ("source_message_id", 1)], unique=True)
+
+
+async def create_vault_collection(owner_id, name, access_key=None):
+    access_key = access_key or _generate_vault_key()
+    doc = {
+        "owner_id": int(owner_id),
+        "name": name,
+        "access_key": access_key,
+        "created_at": datetime.now(),
+    }
+    try:
+        result = await vault_collections_collection.insert_one(doc)
+        doc["_id"] = result.inserted_id
+        doc["id"] = str(result.inserted_id)
+        return doc
+    except Exception as e:
+        logger.error(f"create_vault_collection error: {e}")
+        return None
+
+
+async def get_vault_collection_by_key(access_key):
+    return await vault_collections_collection.find_one({"access_key": access_key})
+
+
+async def get_user_vault_collections(owner_id):
+    cursor = vault_collections_collection.find({"owner_id": int(owner_id)}).sort("created_at", -1)
+    return await cursor.to_list(length=200)
+
+
+async def add_vault_file(
+    collection_id,
+    source_chat_id,
+    source_message_id,
+    storage_chat_id,
+    storage_message_id,
+    file_id,
+    file_unique_id,
+    file_name,
+    mime_type,
+    file_size,
+    caption="",
+    storage_mode="telegram_vault",
+    source_media_group_id=None,
+):
+    doc = {
+        "collection_id": collection_id,
+        "source_chat_id": int(source_chat_id),
+        "source_message_id": int(source_message_id),
+        "storage_chat_id": int(storage_chat_id),
+        "storage_message_id": int(storage_message_id),
+        "file_id": file_id,
+        "file_unique_id": file_unique_id,
+        "file_name": file_name,
+        "mime_type": mime_type,
+        "file_size": file_size or 0,
+        "caption": caption or "",
+        "storage_mode": storage_mode,
+        "source_media_group_id": source_media_group_id,
+        "created_at": datetime.now(),
+    }
+    existing = await vault_files_collection.find_one(
+        {
+            "collection_id": collection_id,
+            "storage_chat_id": int(storage_chat_id),
+            "storage_message_id": int(storage_message_id),
+        }
+    )
+    if existing:
+        return existing
+
+    doc["access_key"] = _generate_vault_key()
+    result = await vault_files_collection.insert_one(doc)
+    doc["_id"] = result.inserted_id
+    return doc
+
+
+async def get_vault_collection_files(collection_id):
+    cursor = vault_files_collection.find({"collection_id": collection_id}).sort("created_at", 1)
+    return await cursor.to_list(length=5000)
+
+
+async def get_vault_file_by_key(access_key):
+    return await vault_files_collection.find_one({"access_key": access_key})
+
+
+async def cache_source_file(source_chat_id, source_message_id, file_doc_id):
+    await vault_source_cache_collection.update_one(
+        {"source_chat_id": int(source_chat_id), "source_message_id": int(source_message_id)},
+        {"$set": {"file_doc_id": file_doc_id, "updated_at": datetime.now()}},
+        upsert=True
+    )
+
+
+async def get_cached_source_file(source_chat_id, source_message_id):
+    cache_doc = await vault_source_cache_collection.find_one(
+        {"source_chat_id": int(source_chat_id), "source_message_id": int(source_message_id)}
+    )
+    if not cache_doc:
+        return None
+    return await vault_files_collection.find_one({"_id": cache_doc["file_doc_id"]})
 
 # ------- < start > Session Encoder don't change -------
 

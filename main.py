@@ -7,9 +7,11 @@ from shared_client import start_client
 import importlib
 import os
 import sys
+from utils.func import ensure_vault_indexes
 
 async def load_and_run_plugins():
     await start_client()
+    await ensure_vault_indexes()
     plugin_dir = "plugins"
     plugins = [f[:-3] for f in os.listdir(plugin_dir) if f.endswith(".py") and f != "__init__.py"]
 

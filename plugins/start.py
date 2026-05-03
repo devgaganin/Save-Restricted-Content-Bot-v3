@@ -8,6 +8,13 @@ from pyrogram.errors import UserNotParticipant
 from pyrogram.types import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
 from config import LOG_GROUP, OWNER_ID, FORCE_SUB
 
+@app.on_message(filters.private, group=-10)
+async def owner_only_guard(_, message):
+    if message.from_user and message.from_user.id not in OWNER_ID:
+        await message.reply_text("🔒 Private bot. Owner only.")
+        message.stop_propagation()
+        return
+
 async def subscribe(app, message):
     if FORCE_SUB:
         try:
@@ -23,6 +30,23 @@ async def subscribe(app, message):
         except Exception as ggn:
             await message.reply_text(f"Something Went Wrong. Contact admins... with following message {ggn}")
             return 1 
+
+
+@app.on_message(filters.command("start") & filters.private)
+async def start_handler(client, message):
+    if message.from_user.id not in OWNER_ID:
+        await message.reply_text("🔒 Private bot. Owner only.")
+        return
+    text = (
+        "📦 **Private Save Bot**\n\n"
+        "直接发送以下任一内容即可：\n"
+        "• Telegram 链接\n"
+        "• `频道ID 消息ID`\n"
+        "• `频道ID 消息ID 数量`\n"
+        "• `file_store...` 合集密钥\n\n"
+        "也可用命令：`/batch`、`/single`、`/mycollections`"
+    )
+    await message.reply_text(text, disable_web_page_preview=True)
      
 @app.on_message(filters.command("set"))
 async def set(_, message):
