@@ -10,6 +10,8 @@ from utils.func import (
     get_vault_file_by_key,
 )
 
+ACTIVE_VAULT_SENDS = set()
+
 
 def _is_owner(user_id: int) -> bool:
     return user_id in OWNER_ID
@@ -220,10 +222,19 @@ async def vault_callback_handler(_, callback):
         return
 
     if action == "send":
+        lock_key = ("send", callback.message.chat.id, access_key, page)
+        if lock_key in ACTIVE_VAULT_SENDS:
+            await callback.answer("Already sending this page.")
+            return
+        ACTIVE_VAULT_SENDS.add(lock_key)
+        await callback.answer("Sending page...")
         start_idx = (page - 1) * 10
         end_idx = start_idx + 10
-        sent = await _send_vault_files(callback.message.chat.id, files[start_idx:end_idx])
-        await callback.answer(f"Sent {sent} files.")
+        try:
+            sent = await _send_vault_files(callback.message.chat.id, files[start_idx:end_idx])
+            await callback.message.reply_text(f"Sent page files: {sent}")
+        finally:
+            ACTIVE_VAULT_SENDS.discard(lock_key)
         return
 
     if action == "codes":
@@ -238,8 +249,17 @@ async def vault_callback_handler(_, callback):
         await callback.answer("File codes sent.")
         return
 
-    sent = await _send_vault_files(callback.message.chat.id, files)
-    await callback.answer(f"Sent {sent} files.")
+    lock_key = ("all", callback.message.chat.id, access_key, 0)
+    if lock_key in ACTIVE_VAULT_SENDS:
+        await callback.answer("Already sending all files.")
+        return
+    ACTIVE_VAULT_SENDS.add(lock_key)
+    await callback.answer("Sending all files...")
+    try:
+        sent = await _send_vault_files(callback.message.chat.id, files)
+        await callback.message.reply_text(f"Sent all files: {sent}")
+    finally:
+        ACTIVE_VAULT_SENDS.discard(lock_key)
 
 
 @app.on_message(filters.text & filters.private)
