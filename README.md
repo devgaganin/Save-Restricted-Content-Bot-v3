@@ -1,204 +1,111 @@
-<h1 align="center">
-  Save Restricted Content Bot v3
-</h1>
+# 🔒 Tgwithrohit Content Saver
 
-The Save Restricted Content Bot is a stable Telegram bot developed by devgagan and TEAM SPY. It enables users to forward (no forward tag) messages from Telegram channels and groups, offering features such as custom thumbnail support and the ability to upload files up to 4GB. Additionally, the bot supports downloading videos from platforms like YouTube, Instagram, and Facebook, along with over 100 other sites(which ytdlp supports)
+Telegram content saver based on the v3 Pyrogram + Telethon codebase. Use only for content you have permission to access and save. The new interface uses nested buttons, emojis, bold Unicode and blockquotes.
 
-[Telegram](https://t.me/restbots) | [See Recent Updates](https://github.com/devgaganin/Save-Restricted-Content-Bot-V2/tree/v3#updates)
+## ✨ What is available
 
-### Star the repo it motivate us to update new features
-Please do start and max fork thanks 
+- **Save:** single post, MongoDB-backed batch, and bounded topic-scoped batch; task status and stop (pause/resume for batches); batch summary and private archive history, with confirmation before retrying failed items or clearing history.
+- **Live mirror:** one source per user, saved subscription restored after restart. Requires the user's own session, custom bot, destination and active premium (owners are exempt). It processes new updates only while online; it does not catch up missed messages. One bot instance only: multiple instances can duplicate delivery. In-flight work may finish after stop. Avoid using a source as the destination.
+- **Content settings:** destination/topic, filename tag, caption, original-caption toggle, prefix/suffix, thumbnail, word deletion/replacement and media filter; a private preview displays current values without exposing credentials. Clear one setting with confirmation or reset all content settings. Reset applies to current content settings and the thumbnail and can affect active tasks and mirrors. Reset confirmation is one-use and expires after 10 minutes; it is not a value-bound snapshot. Some legacy processing messages still use the older theme.
+- **Account:** login/logout, custom bot setup, status and account-data deletion. Deletion attempts to remove account settings, saved credentials, mirror data, saved jobs and history and local thumbnail/session files; payment and premium records and backups may be retained. A private, one-use confirmation expires after 10 minutes or when navigating away; old delete buttons no longer work. Deletion spans multiple operations and is not transactional: if it fails, some data may already be removed. Check Telegram Settings → Devices and retry when instructed. If Telegram revocation fails, revoke the session in Telegram Settings → Devices. Logout and Remove Bot have separate one-use 10-minute confirmations bound to the saved credential; changed credentials require a fresh confirmation. Removing a bot locally does not revoke its token at BotFather.
+- **Owner panel:** basic statistics, grant/revoke premium, broadcast to active premium accounts, manual gift request review, and limited payment-review queues. Owner checks apply to callbacks and input.
+- **Premium:** Telegram Stars, optional Razorpay payment links, optional manual gift-card reference review, and optional user-opt-in expiry reminders. See payment instructions below.
+- **External video/audio:** disabled by default until the operator explicitly enables it and isolates outbound network access.
 
-## 📚 About This Branch
-- This branch is based on `Pyrogram V2` offering enhanced stability and a forced login feature. User are not forced to login in bot for public channels but for public groups and private channel they have to do login.
-- for detailed features scroll down to features section
+Send `/start` once to open the interface. Some legacy command handlers remain for compatibility; credential-management commands now direct users to the account menu. The Telegram command picker is set to just Start. This is not a complete command-free rewrite.
 
----
+## 🚀 Setup
 
-## 🔧 Features
-- Extract content from both public and private channels/groups.
-- Custom bot functionality added use `/setbot`
-- 128 bit encryption for data saving use @v3saverbot on telegram to generate `MASTER_KEY`, `IV_KEY`
-- Rename and forward content to other channels or users.
-- extract restricted content from other bots how to use format link like `https://botusername(without @)/message_id(get it from plus messenger)`
-- `/login` method along with `session` based login
-- Custom captions and thumbnails.
-- Auto-remove default video thumbnails.
-- Delete or replace words in filenames and captions.
-- Auto-pin messages if enabled.
-- download yt/insta/Twitter/fb ect normal ytdlp supported sites that supports best format
-- Login via phone number.
-- **Supports 4GB file uploads**: The bot can handle large file uploads, up to 4GB in size.
-- file splitter if not premium string
-- **Enhanced Timer**: Distinct timers for free and paid users to limit usage and improve service.
-- **Improved Looping**: Optimized looping for processing multiple files or links, reducing delays and enhancing performance.
-- **Premium Access**: Premium users enjoy faster processing speeds and priority queue management.
-- ~~ads setup shorlink ads token system~~
-- ~~fast uploader via `SpyLib` using Telethon modules and `mautrix bridge repo`~~ 
-- Directly upload to `topic` in any topic enabled group
-- real time download and uplaod progress, support chats, text , audio, video , video note sticker everything
+1. Install Python 3.10+ and FFmpeg, then `pip install -r requirements.txt`.
+2. Copy `.env.example` to `.env` and fill in `API_ID`, `API_HASH`, `BOT_TOKEN`, `MONGO_DB` and space-separated numeric `OWNER_ID`s. Never commit or share these values.
+3. Set random, unique `MASTER_KEY` (at least 16 characters) and `IV_KEY` (at least 12 characters). Generate locally, for example with `python -c "import secrets; print(secrets.token_urlsafe(32))"` for each. Keys must remain stable across restarts.
+4. Set `FREEMIUM_LIMIT` to a positive batch count to allow free use. `FORCE_SUB=0` disables forced subscription. Configure `LOG_GROUP` and optional `STRING` for the existing large-file path. Large files may be uploaded through that log group, so its members may be able to see them.
+5. Run `python main.py`; open the bot with `/start`.
 
-  
-## ⚡ Commands
+**Existing installations:** encrypted sessions and tokens require the old keys. Do not rotate keys without decrypting and re-encrypting data or having users reconnect. To temporarily run with the old public defaults, set `ALLOW_INSECURE_LEGACY_KEYS=true` while planning migration; this is insecure. Previously saved plaintext custom bot tokens remain readable and are encrypted when next saved. The bot refuses default keys by default.
 
-- **`start`**: 🚀 Start the bot.
-- **`batch`**: 🫠 Extract in bulk.
-- **`login`**: 🔑 Get into the bot.
-- **`single`**: Process single link.
-- **`setbot`**: add your custome bot.
-- **`logout`**: 🚪 Get out of the bot.
-- **`adl`**: 👻 Download audio from 30+ sites.
-- **`dl`**: 💀 Download videos from 30+ sites.
-- **`transfer`**: 💘 Gift premium to others.
-- **`status`**: ⌛ Get your plan details.
-- **`add`**: ➕ Add user to premium.
-- **`rem`**: ➖ Remove user from premium.
-- **`rembot`**: remove your custome bot.
-- **`session`**: 🧵 Generate Pyrogramv2 session.
-- **`settings`**: ⚙️ Personalize settings.
-- **`stats`**: 📊 Get stats of the bot.
-- **`plan`**: 🗓️ Check our premium plans.
-- **`terms`**: 🥺 Terms and conditions.
-- **`help`**: ❓ Help if you're new.
-- **`cancel`**: 🚫 Cancel batch process.
+**Account security:** the login flow receives phone numbers, login codes and 2FA passwords in bot chat. Old Telethon settings and session-string buttons are disabled; `/settings` only directs users to the private menu. Never send session strings to the bot. Reconnecting stops an active mirror first. Login input and credential removal are serialized, but a request already in progress can finish before cancellation; check account status and Telegram Devices. Message deletion is best effort, and the operator can access credentials and the resulting session. Only use a trusted, private deployment. Protect MongoDB and server storage. Never submit redemption codes or session strings to an untrusted bot.
 
+**Custom bot token setup:** Account → Custom Bot accepts a token only in private chat. The operator can access the token despite encrypted storage; trust the operator. Message deletion is best effort and a failure is reported when possible. Replacement stops and drains the live mirror. Token format is checked locally, but Telegram validity is not checked at save time; a saved token can still fail when used. An uncertain database result may mean the token was saved even if an error appears. Account Status only shows whether a token is stored, not which one. Revoke an exposed token with BotFather; deleting it here does not revoke it there. Tests are offline only.
 
-## ⚙️ Required Variables
+**External downloads:** set `ENABLE_EXTERNAL_DOWNLOADS=true` only after enforcing outbound network isolation and blocking private/internal addresses and redirects at the infrastructure level. yt-dlp can make further network requests; URL syntax checks alone do not prevent SSRF. Video quality can be selected as Auto or up to 360p, 480p, 720p, or 1080p; unavailable MP4 formats fail rather than exceeding the selected resolution. These are maximums, not guarantees of exact resolution. Source availability, file size limits and Telegram rate limits still apply. Temporary download files and configured cookies are stored in per-request temporary directories and removed afterwards, except on abrupt process termination. Cookie files must contain only the intended provider’s scoped cookies; provider URLs and redirects still require infrastructure isolation.
 
-<details>
-<summary><b>Click to view required variables</b></summary>
+## 💎 Payments
 
-To run the bot, you'll need to configure a few sensitive variables. Here's how to set them up securely:
+### Payment-history safety for existing databases
 
-- **`API_ID`**: Your API ID from [telegram.org](https://my.telegram.org/auth).
-- **`API_HASH`**: Your API Hash from [telegram.org](https://my.telegram.org/auth).
-- **`BOT_TOKEN`**: Get your bot token from [@BotFather](https://t.me/botfather).
-- **`OWNER_ID`**: Use [@missrose_bot](https://t.me/missrose_bot) to get your user ID by sending `/info`.
-- **`CHANNEL_ID`**: The ID of the channel for forced subscription.
-- **`LOG_GROUP`**: A group or channel where the bot logs messages. Forward a message to [@userinfobot](https://t.me/userinfobot) to get your channel/group ID.
-- **`MONGO_DB`**: A MongoDB URL for storing session data (recommended for security).
-  
-### Additional Configuration Options:
-- **`STRING`**: (Optional) Add your **premium account session string** here to allow 4GB file uploads. This is **optional** and can be left empty if not used.
-- **`FREEMIUM_LIMIT`**: Default is `0`. Set this to any value you want to allow free users to extract content. If set to `0`, free users will not have access to any extraction features.
-- **`PREMIUM_LIMIT`**: Default is `500`. This is the batch limit for premium users. You can customize this to allow premium users to process more links/files in one batch.
-- **`YT_COOKIES`**: Yt cookies for downloading yt videos 
-- **`INSTA_COOKIES`**: If you want to enable instagram downloading fill cookiesn
+Some older versions created a MongoDB TTL index (typically `expireAt_1`) on `premium_users`. Such an index deletes the **entire premium document** at expiry, including payment IDs used for duplicate-grant protection. It can also erase records before a reminder or recovery is processed. This version no longer creates that index; legacy `/add` and `/rem` direct users to the owner panel, and the unsafe legacy `/transfer` is disabled.
 
-**How to get cookies ??** : use mozila firfox if on android or use chrome on desktop and download extension get this cookie or any Netscape Cookies (HTTP Cookies) extractor and use that 
+**Before taking payments:** stop all old workers, back up the database, inspect `db.premium_users.getIndexes()` in MongoDB and remove any TTL index from `premium_users` after reviewing it. Do not remove the required unique `user_id` index. Reconcile any records already deleted by TTL or legacy transfer/revoke against provider and invoice history; removing an index cannot restore lost payment IDs. New Stars invoices, Stars pre-checkout, premium grants and Razorpay link creation/webhook processing fail closed if a TTL index remains or index inspection fails. Already-created payment links and payments can need manual review; do not assume this change repairs old history. Indexes are never automatically dropped. Legacy versions used server-local time for some premium timestamps; if the old host was not on UTC, review and migrate those dates deliberately before enabling billing or reminders. Do not enable billing until the database and recovery path have been reviewed and tested with the real providers.
 
-### Monetization (Optional):
-- **`WEBSITE_URL`**: (Optional) This is the domain for your monetization short link service. Provide the shortener's domain name, for example: `upshrink.com`. Do **not** include `www` or `https://`. The default link shortener is already set.
-- **`AD_API`**: (Optional) The API key from your link shortener service (e.g., **Upshrink**, **AdFly**, etc.) to monetize links. Enter the API provided by your shortener.
+### Telegram Stars
 
-> **Important:** Always keep your credentials secure! Never hard-code them in the repository. Use environment variables or a `.env` file.
+Configure `PLAN_*` prices/durations. The bot stores invoice snapshots and validates pre-checkout details. It records the charge ID in the premium document to avoid extending twice on a repeated event. `premium_users.user_id` must be unique and MongoDB must support aggregation update pipelines; resolve existing duplicate users before enabling payments. If activation fails, the user and owner are notified for manual review. Test with Telegram and MongoDB before charging users; offline tests do not prove a live payment flow.
 
-</details>
+### Owner payment review (limited recovery)
 
----
+The owner panel → Payment Review lists the latest 505 Stars and Razorpay `processing` records and Razorpay link records stuck in `creating`. Processing may still be running; creating links and unbound Stars invoices are **not** proof that a payment succeeded. The queues are not a complete provider transaction history and do not include paid events lost before a verified charge was stored. Consult the buyer receipt and provider dashboard, including refund/dispute status, independently.
 
-## 🚀 Deployment Guide
+For a processing record whose exact payment ID is **already present** on that user's premium document, the owner can confirm marking the invoice `completed`. The bot rechecks the invoice snapshot, duplicate payment IDs, TTL-index guard and stored grant, and creates an `admin_audit` record before changing invoice status. This action **never grants or extends premium**, does not notify the buyer, and does not prove that the current subscription is active. Unapplied or missing payments require manual provider/database reconciliation; do not fabricate processing records or grant a second time without checking payment history. Confirmations are one-shot, expire after 10 minutes and disappear on restart or navigation away.
 
-<details>
-<summary><b>Deploy on VPS</b></summary>
+The proof and invoice update are separate MongoDB operations, not a transaction: stop old workers and avoid concurrent migrations/deletions of payment or premium history during review. Inspect the audit log and invoice after an error or ambiguous response. The workflow does not reconcile refunds, chargebacks, provider-side mismatches, a failed invoice creation or a payment received before processing was stored. It has offline tests only; test against a real replica/database and providers before taking payments. For large queues, consider indexes `(status, created_at, _id)` on `stars_invoices` and `razorpay_payments`; use a database backup and review existing indexes first. Payment history must not be deleted or TTL-expired.
 
-1. Fork the repo.
-2. Update `config.py` with your values.
-3. Run the following:
-   ```bash
-   sudo apt update
-   sudo apt install ffmpeg git python3-pip
-   git clone your_repo_link
-   cd your_repo_name
-   pip3 install -r requirements.txt
-   python3 main.py
-   ```
+### Optional Razorpay
 
-- To run the bot in the background:
-  ```bash
-  screen -S gagan
-  python3 main.py
-  ```
-  - Detach: `Ctrl + A`, then `Ctrl + D`
-  - To stop: `screen -r gagan` and `screen -S gagan -X quit`
+**Disabled by default.** Check current Telegram, Razorpay and local rules before enabling; Telegram digital goods/services sold inside bots may require Stars. Do not enable alternative payment flows unless your use is compliant.
 
-</details>
+- Set `RAZORPAY_ENABLED=true`, provider key ID, key secret, webhook secret and `RAZORPAY_PLAN_*_PAISE` prices. A zero price disables that plan.
+- Expose the web app over HTTPS and configure Razorpay's `payment_link.paid` webhook at `https://YOUR_DOMAIN/webhooks/razorpay`. Keep the webhook secret private. Run the bot worker and the web app; `python main.py` alone does **not** serve webhooks. The included Flask development server can be run with `python app.py` for local testing; use a production WSGI server and reverse proxy for deployment. The Procfile defines separate worker and web processes; the Docker default starts both in one container.
+- The webhook verifies the raw-body HMAC, captured status, full INR amount, stored link ID and payment ID before granting premium. Webhook failures return retryable errors when appropriate. Check provider dashboards for creation failures, refunds and disputes; automatic refund/dispute reconciliation and buyer notification from the webhook are not implemented. Users can check plan status in the bot.
 
-<details>
-<summary><b>Deploy on Heroku</b></summary>
+### Optional manual gift-card review
 
-1. Fork and Star the repo.
-2. Click [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://www.heroku.com/deploy).
-3. Enter required variables and click deploy ✅.
+Set `GIFT_ENABLED=true` and optional `GIFT_PLAN_*_VALUE` display text. Users choose a plan and card type, then submit a **non-secret reference** like `REF-ABC12345`; never send a gift-card redemption code. Owners must independently verify payment before using Approve or Reject. This is a manual workflow, not automatic gift-card validation. Owner panel shows pending requests, including requests whose notification failed. Duplicate references are rejected.
 
-</details>
+All payment systems need real provider, database and recovery testing before production use. Record keeping, refunds, customer support and compliance are the operator's responsibility.
 
-<details>
-<summary><b>Deploy on Render</b></summary>
+## ⏰ Optional expiry reminders
 
-1. Fork and star the repo.
-2. Edit `config.py` or set environment variables on Render.
-3. Go to [render.com](https://render.com), sign up/log in.
-4. Create a new web service, select the free plan.
-5. Connect your GitHub repo and deploy ✅.
+Set `EXPIRY_REMINDERS_ENABLED=true` and restart the bot worker; each user must additionally turn reminders on under Premium → Reminders. Defaults: a 24-hour window and a scan every 900 seconds. Configure `EXPIRY_REMINDER_HOURS` (1–720) and `EXPIRY_REMINDER_INTERVAL_SECONDS` (60–86400). The worker creates a unique `premium_users.user_id` index, so resolve duplicates before enabling it. Owners are excluded; users can opt out at any time, and account deletion removes their preference.
 
-</details>
+Reminders are **best effort**, not guaranteed: the bot must be online, Telegram must accept the message, and the subscription must enter the window while it is being scanned. The system claims each expiry before sending and does not retry ambiguous or failed sends, to reduce duplicates. A crash or send failure can therefore lose the reminder. Renewal/revocation is checked at claim time, but may race with delivery; the message reports expiry *when checked*. One bot worker is required as for batch/mirror. This feature has offline tests only.
 
-<details>
-<summary><b>Deploy on Koyeb</b></summary>
+## 📚 Batch recovery
 
-1. Fork and star the repo.
-2. Edit `config.py` or set environment variables on Koyeb.
-3. Create a new service, select `Dockerfile` as build type.
-4. Connect your GitHub repo and deploy ✅.
+Batch jobs are stored in MongoDB (maximum 5,000 items, additionally limited by the user's current plan). Run **one bot worker instance only**: the queue does not provide distributed worker locking. After a restart, open Save Posts → Task Status and resume manually; batches never automatically restart. The destination is captured at batch creation; other content settings can change during processing.
 
-</details>
+A Telegram delivery and its database checkpoint cannot be atomic. If a worker stops with an item in flight, Task Status asks whether to **skip** it or **retry** it; retrying may duplicate an already delivered item, while skipping may omit it. Failed-item retry is also manual and warns of possible duplicates; cancelled batches with remaining items must be resumed before retrying failures. Confirmation buttons are bound to the relevant job and item attempt, so old buttons do not silently retry a different checkpoint. An error during a direct media send is not automatically retried through another upload path. Stop/pause takes effect between items; an upload already in progress may complete. Stop marks a saved job cancelled and it can still be resumed manually, or replaced by a new batch; account-data deletion removes saved jobs and history. A failed database update may prevent even the interruption status from being saved; restore database access and review Task Status. This recovery flow has only offline mock tests, not live Telegram/MongoDB integration tests.
 
----
-### ⚠️ Must Do: Secure Your Sensitive Variables
+## 🌐 Language / भाषा
 
-**Do not expose sensitive variables (e.g., `API_ID`, `API_HASH`, `BOT_TOKEN`) on GitHub. Use environment variables to keep them secure.**
+Use Settings → Language / भाषा to choose English or Hindi for the main menus, navigation buttons, standard input prompts, batch setup, task/retry controls, batch history, the content-settings preview and clear-one flow, core login/logout prompts and privacy warnings, custom-bot token setup, account status, account-data deletion, and content-reset prompts and results. English is the default; the choice is saved per user in MongoDB and retained across restarts. Content reset does not change the language; account-data deletion removes it. If the preference cannot be read, menus temporarily fall back to English. If saving fails, the bot reports the failure instead of claiming a change.
 
-### Configuring Variables Securely:
+Account status only reports whether credentials are stored, not whether they are valid; a failed database read is shown as unknown. This is **partial localization**: other account screens, individual media-processing steps, payment, owner workflows, some notifications, validation errors and downloader screens may still appear in English. Login uses the language selected when the flow starts; unsuccessful input-message deletion is reported when possible. Batch progress and completion notifications use the language selected at batch creation; changing language later affects Task Status but not an existing batch or its failed-item retry. Older jobs without a language snapshot use English. Technical terms and some button labels remain English to avoid changing payment or security instructions inaccurately. `/start` is still required as the Telegram bootstrap. Locale selection and menu rendering have offline mock tests only; live Telegram and MongoDB testing is pending.
 
-- **On VPS or Local Machine:**
-  - Use a text editor to edit `config.py`:
-    ```bash
-    nano config.py
-    ```
-  - Alternatively, export as environment variables:
-    ```bash
-    export API_ID=your_api_id
-    export API_HASH=your_api_hash
-    export BOT_TOKEN=your_bot_token
-    ```
+## 🧵 Topic-scoped batch (limited)
 
-- **For Cloud Platforms (Heroku, Railway, etc.):**
-  - Set environment variables directly in your platform’s dashboard.
+Set Settings → Destination to an existing destination forum group and topic, formatted `-100<group-id>/<topic-id>`. Under Save Posts → Topic Batch, send an explicit source forum post link containing both topic and message IDs, for example `https://t.me/c/123456/12/99` or `https://t.me/publicgroup/12/99`. A plain message link or topic-root-only link is not enough. The connected user account needs access to both forums and their topics; the custom bot must be able to access and post in the destination. The source and destination must be **different forum groups**. The initial post must be verifiably in the selected topic. A closed, missing or inaccessible destination topic is rejected; permissions may change after checks.
 
-- **Using `.env` File:**
-  - Create a `.env` file and add your credentials:
-    ```
-    API_ID=your_api_id
-    API_HASH=your_api_hash
-    BOT_TOKEN=your_bot_token
-    ```
-  - Make sure to add `.env` to `.gitignore` to prevent it from being pushed to GitHub.
+Enter the number of **consecutive message IDs to scan**, starting at the linked post, not the number of topic posts to copy. Interleaved messages in other topics and service messages are skipped; missing messages and messages whose forum/topic metadata cannot be verified are recorded as failures. The scan is bounded by the plan limit and the 5,000-ID cap. It does not enumerate all messages in the topic and can miss messages outside the selected range; inspect the summary and retry failures cautiously. Existing batch checkpoint, pause/stop and duplicate-warning rules apply, and the source topic/destination are preserved for resume and retry. Telegram sends to the configured `message_thread_id`; actual permissions, thread routing, message metadata and media support require live testing.
 
-**Why This is Important?**
-Your credentials can be stolen if pushed to a public repository. Always keep them secure by using environment variables or local configuration files.
+This is **not full topic cloning**: it does not create destination topics, copy topic names/icons, preserve message reply trees or automatically map every topic. Ordinary Batch scans consecutive IDs across the whole chat, including all topics. For safety, it now rejects a link with an explicit topic component and directs the user to Topic Batch; Single still handles one linked post. Old saved jobs created before this change may have discarded the topic component and cannot be made topic-scoped automatically. Stop and review or replace such jobs instead of resuming them blindly. Topic Batch has offline mock tests only and has not been tested with live forum groups or MongoDB.
 
----
+## 🗂️ Batch history and settings preview
 
-## 🛠️ Terms of Use
+Save Posts → History lists up to the latest 1,005 archived batches, five per page, scoped to the user's private chat. A batch is archived when it is replaced by a new batch or failed-item retry; the current batch remains under Task Status. Archived entries are view-only and cannot be resumed or retried. Clearing history requires a short-lived confirmation and deletes archived records only; the current task and any protected copy remain. A current task may later appear in history when replaced. Account-data deletion also removes batch jobs and history. The database retains source/destination and message IDs in archived records until deletion; protect backups and MongoDB access. There is no automatic history retention limit. For large installations, consider a compound index on `batch_history` (`user_id`, `archived_at`, `_id`) after reviewing the deployment.
 
-Visit the [Terms of Use](https://github.com/devgaganin/Save-Restricted-Content-Bot-Repo/blob/master/TERMS_OF_USE.md) page to review and accept the guidelines.
-## Important Note
+Settings → View Settings displays the user's content settings without showing bot tokens or session strings. Long text is shortened in the preview. Settings → Clear One removes one selected content value after a short-lived confirmation; a changed value will not be cleared by an old confirmation. Thumbnail removal still requires the content reset. Destination changes apply to future batches, while some other content settings can affect an already running batch. History and preview have offline tests only.
 
-**Note**: Changing the terms and commands doesn't magically make you a developer. Real development involves understanding the code, writing new functionalities, and debugging issues, not just renaming things. If only it were that easy!
+## ⚠️ Remaining limitations
 
+This is not yet all 40 proposed improvements or a complete v4 rewrite. Full topic cloning, complete Hindi localization, guaranteed anti-ban protection and full admin/payment recovery are not implemented. Live mirror does not restore missed messages. No claim is made that all protected media can be saved. Telegram permissions, APIs and limits apply.
 
-<h3 align="center">
-  Developed with ❤️ by <a href="https://t.me/restbots"> Gagan </a>
-</h3>
+Single-post work is tracked while running but is not restart-resumable; cancellation cannot reliably undo an in-flight Telegram send. Leaving a normal input prompt via Home or Back discards it; login must be completed or explicitly cancelled. The legacy forwarding engine and external downloader still require real-world integration and security testing. No source access restrictions, content rights or Telegram limits should be assumed to be bypassable.
 
+## 🧪 Tests and health
+
+`python -m unittest discover -s tests -v` runs offline tests with mocked Telegram/MongoDB/payment calls. `/health` on the web service checks web-process liveness only, not bot or database readiness. Live Telegram, MongoDB, provider and multi-process tests require a separately configured environment.
+
+## 📜 License and attribution
+
+GPL-3.0: see [LICENSE](LICENSE). Original copyright notices and third-party dependency attribution remain intact; branding does not change authorship or licenses.

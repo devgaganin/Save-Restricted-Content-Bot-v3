@@ -56,16 +56,27 @@ def hhmmss(seconds):
     return time.strftime('%H:%M:%S', time.gmtime(seconds))
 
 
-def E(L):   
-    private_match = re.match(r'https://t\.me/c/(\d+)/(?:\d+/)?(\d+)', L)
-    public_match = re.match(r'https://t\.me/([^/]+)/(?:\d+/)?(\d+)', L)
-    
-    if private_match:
-        return f'-100{private_match.group(1)}', int(private_match.group(2)), 'private'
-    elif public_match:
-        return public_match.group(1), int(public_match.group(2)), 'public'
-    
-    return None, None, None
+def parse_message_link(link):
+    """Return (chat, message, link type, optional explicit forum topic ID)."""
+    invalid = (None, None, None, None)
+    if not isinstance(link, str) or len(link) > 2048:
+        return invalid
+    private = re.fullmatch(r'https://t\.me/c/([0-9]{1,15})/(?:([0-9]{1,10})/)?([0-9]{1,10})/?(?:[?#][^\s]*)?', link)
+    public = re.fullmatch(r'https://t\.me/([A-Za-z0-9_]{1,32})/(?:([0-9]{1,10})/)?([0-9]{1,10})/?(?:[?#][^\s]*)?', link)
+    match = private if link.startswith('https://t.me/c/') else public
+    if not match:
+        return invalid
+    message_id = int(match.group(3))
+    topic_id = int(match.group(2)) if match.group(2) is not None else None
+    if not 1 <= message_id <= 2_147_483_647 or (topic_id is not None and not 1 <= topic_id <= 2_147_483_647):
+        return invalid
+    source = f'-100{match.group(1)}' if private else match.group(1)
+    return source, message_id, 'private' if private else 'public', topic_id
+
+
+def E(link):
+    """Compatibility helper for existing callers; use parse_message_link for topic scope."""
+    return parse_message_link(link)[:3]
 
 
 def get_display_name(user):
@@ -138,7 +149,7 @@ async def save_user_session(user_id, session_string):
         logger.info(f"Saved session for user {user_id}")
         return True
     except Exception as e:
-        logger.error(f"Error saving session for user {user_id}: {e}")
+        logger.error("Error saving session for user %s: %s", user_id, type(e).__name__)
         return False
 
 
@@ -151,24 +162,28 @@ async def remove_user_session(user_id):
         logger.info(f"Removed session for user {user_id}")
         return True
     except Exception as e:
-        logger.error(f"Error removing session for user {user_id}: {e}")
+        logger.error("Error removing session for user %s: %s", user_id, type(e).__name__)
         return False
 
 
 async def save_user_bot(user_id, bot_token):
     try:
-        await users_collection.update_one(
+        from utils.encrypt import ecs
+        result = await users_collection.update_one(
             {"user_id": user_id},
             {"$set": {
-                "bot_token": bot_token,
+                "bot_token": "enc:v1:" + ecs(bot_token),
                 "updated_at": datetime.now()
             }},
             upsert=True
         )
+        if not result.acknowledged or not (result.matched_count or result.upserted_id is not None):
+            logger.warning("Bot token storage could not be confirmed for user %s", user_id)
+            return False
         logger.info(f"Saved bot token for user {user_id}")
         return True
     except Exception as e:
-        logger.error(f"Error saving bot token for user {user_id}: {e}")
+        logger.error("Error saving bot token for user %s: %s", user_id, type(e).__name__)
         return False
 
 
@@ -202,7 +217,9 @@ async def process_text_with_rules(user_id, text):
             filtered_words = [w for w in words if w not in delete_words]
             processed_text = " ".join(filtered_words)
         
-        return processed_text
+        prefix = await get_user_data_key(user_id, "prefix", "")
+        suffix = await get_user_data_key(user_id, "suffix", "")
+        return "\n".join(part for part in (prefix, processed_text, suffix) if part)
     except Exception as e:
         logger.error(f"Error processing text with rules: {e}")
         return text
@@ -279,7 +296,7 @@ async def get_video_metadata(file_path):
 
 async def add_premium_user(user_id, duration_value, duration_unit):
     try:
-        now = datetime.now()
+        now = datetime.utcnow()
         expiry_date = None
         
         if duration_unit == "min":
@@ -310,7 +327,7 @@ async def add_premium_user(user_id, duration_value, duration_unit):
             upsert=True
         )
         
-        await premium_users_collection.create_index("expireAt", expireAfterSeconds=0)
+        # Never create a TTL index here: expiry must not erase payment IDs.
         
         return True, expiry_date
     except Exception as e:
@@ -319,10 +336,13 @@ async def add_premium_user(user_id, duration_value, duration_unit):
 
 
 async def is_premium_user(user_id):
+    from config import OWNER_ID
+    if int(user_id) in OWNER_ID:
+        return True
     try:
         user = await premium_users_collection.find_one({"user_id": user_id})
         if user and "subscription_end" in user:
-            now = datetime.now()
+            now = datetime.utcnow()
             return now < user["subscription_end"]
         return False
     except Exception as e:

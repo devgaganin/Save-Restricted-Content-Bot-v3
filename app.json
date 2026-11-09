@@ -1,10 +1,14 @@
 {
-  "name": "Save Restricted Content Bot v3",
-  "description": "Save Restricted Content Bot by Team SPY",
-  "logo": "https://lh3.googleusercontent.com/-HPcn7AqepNg/AAAAAAAAAAI/AAAAAAAAAAA/ALKGfknb1BkQiq-8_KUVOYcNAJ4swKivDQ/photo.jpg",
-  "keywords": ["python3", "telegram", "MusicBot", "telegram-bot", "pyrogram"],
-  "repository": "https://github.com/devgaganin/save_restricted-content-telegram-bot-repo",
-  "success_url": "https://devgagan.in",
+  "name": "Tgwithrohit Content Saver",
+  "description": "Telegram content saver by Tgwithrohit",
+  "keywords": [
+    "python3",
+    "telegram",
+    "MusicBot",
+    "telegram-bot",
+    "pyrogram"
+  ],
+  "repository": "https://github.com/Tgwithrohitt/Save-Restricted-Content-Bot-v3",
   "env": {
     "API_ID": {
       "description": "Get this value from https://my.telegram.org",
@@ -43,8 +47,8 @@
     },
     "FORCE_SUB": {
       "description": "Channel ID (with -100 prefix) for forced subscription",
-      "value": "-10012345567",
-      "required": true
+      "value": "0",
+      "required": false
     },
     "LOG_GROUP": {
       "description": "Log channel/group ID (with -100 prefix) where the bot will send logs",
@@ -53,13 +57,13 @@
     },
     "MASTER_KEY": {
       "description": "Master key used for session encryption",
-      "value": "gK8HzLfT9QpViJcYeB5wRa3DmN7P2xUq",
-      "required": false
+      "value": "",
+      "required": true
     },
     "IV_KEY": {
       "description": "Initialization vector key for decryption",
-      "value": "s7Yx5CpVmE3F",
-      "required": false
+      "value": "",
+      "required": true
     },
     "YT_COOKIES": {
       "description": "Cookies for YouTube downloads (in Netscape format)",
@@ -83,18 +87,22 @@
     },
     "ADMIN_CONTACT": {
       "description": "type admin contact link",
-      "value": "https://t.me/kingofpatal",
+      "value": "https://t.me/tgwithrohit",
       "required": true
     },
     "JOIN_LINK": {
       "description": "type join channel link which comes on /start",
-      "value": "https://t.me/team_spy_pro",
+      "value": "https://t.me/tgwithrohit",
       "required": true
     }
   },
   "buildpacks": [
-    { "url": "heroku/python" },
-    { "url": "https://github.com/heroku/heroku-buildpack-activestorage-preview" }
+    {
+      "url": "heroku/python"
+    },
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-activestorage-preview"
+    }
   ],
   "stack": "container"
 }

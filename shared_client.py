@@ -14,7 +14,7 @@ userbot = Client("4gbbot", api_id=API_ID, api_hash=API_HASH, session_string=STRI
 async def start_client():
     if not client.is_connected():
         await client.start(bot_token=BOT_TOKEN)
-        print("SpyLib started...")
+        print("Telegram client started...")
     if STRING:
         try:
             await userbot.start()
@@ -24,5 +24,11 @@ async def start_client():
             sys.exit(1)
     await app.start()
     print("Pyro App Started...")
+    # Keep Telegram's command picker simple; legacy commands still work.
+    try:
+        from pyrogram.types import BotCommand
+        await app.set_bot_commands([BotCommand("start", "Open the menu")])
+    except Exception as exc:
+        print(f"Could not update command menu: {exc}")
     return client, app, userbot
 
