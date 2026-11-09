@@ -4,7 +4,7 @@ psutil
 opencv-python-headless
 devgagantools
 aiofiles
-pyrofork
+pyrofork>=2.3.69
 # ggnpyro
 # https://www.dl.dropboxusercontent.com/scl/fi/e0fo6fcjn8kmr5r0x6wvg/myownpyro.zip?rlkey=d1znpwckss4ullz0sg7e1qjjg&st=kmbh7wdv&dl=0
 aiohttp
@@ -21,3 +21,5 @@ yt-dlp
 requests
 cryptography
 
+
+gunicorn>=21,<24

@@ -1,11 +1,9 @@
 FROM python:3.10-slim
-RUN apt-get update && apt-get install -y git curl ffmpeg python3-pip wget bash && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY requirements.txt .
-
-RUN pip3 install wheel
-RUN pip3 install --no-cache-dir -U -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 EXPOSE 5000
-
-CMD flask run -h 0.0.0.0 -p 5000 & python3 main.py
+# The worker is the main process; deploy a separate web service for independent scaling.
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} app:app & exec python3 main.py"]

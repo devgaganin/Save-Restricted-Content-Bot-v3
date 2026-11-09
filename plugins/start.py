@@ -8,12 +8,12 @@ from pyrogram.errors import UserNotParticipant
 from pyrogram.types import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
 from config import LOG_GROUP, OWNER_ID, FORCE_SUB
 
-async def subscribe(app, message):
+async def subscribe(app, message, user_id=None):
     if FORCE_SUB:
         try:
-          user = await app.get_chat_member(FORCE_SUB, message.from_user.id)
+          user = await app.get_chat_member(FORCE_SUB, user_id if user_id is not None else message.from_user.id)
           if str(user.status) == "ChatMemberStatus.BANNED":
-              await message.reply_text("You are Banned. Contact -- Team SPY")
+              await message.reply_text("You are Banned. Contact -- Tgwithrohit")
               return 1
         except UserNotParticipant:
             link = await app.export_chat_invite_link(FORCE_SUB)
@@ -103,7 +103,7 @@ help_pages = [
         "> 4. REPLACEWORDS : Can be used for words in deleted set via REMOVE WORDS\n"
         "> 5. RESET : To set the things back to default\n\n"
         "> You can set CUSTOM THUMBNAIL, PDF WATERMARK, VIDEO WATERMARK, SESSION-based login, etc. from settings\n\n"
-        "**__Powered by Team SPY__**"
+        "**__Powered by Tgwithrohit__**"
     )
 ]
  

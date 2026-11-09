@@ -1,0 +1,14 @@
+# Local environment and Python build output
+.venv/
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.session
+*.session-journal
+active_users.json
+# User uploads and thumbnails
+*.jpg
+*.jpeg
+*.mp4
+*.mp3
