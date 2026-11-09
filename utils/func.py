@@ -337,7 +337,13 @@ async def add_premium_user(user_id, duration_value, duration_unit):
 
 async def is_premium_user(user_id):
     from config import OWNER_ID
-    if int(user_id) in OWNER_ID:
+    try:
+        user_id = int(user_id)
+        if user_id <= 0:
+            return False
+    except (TypeError, ValueError, OverflowError):
+        return False
+    if user_id in OWNER_ID:
         return True
     try:
         user = await premium_users_collection.find_one({"user_id": user_id})
@@ -352,6 +358,9 @@ async def is_premium_user(user_id):
 
 async def get_premium_details(user_id):
     try:
+        user_id = int(user_id)
+        if user_id <= 0:
+            return None
         user = await premium_users_collection.find_one({"user_id": user_id})
         if user and "subscription_end" in user:
             return user

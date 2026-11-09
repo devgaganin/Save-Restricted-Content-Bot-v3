@@ -158,6 +158,7 @@ class MirrorTests(unittest.IsolatedAsyncioTestCase):
         from plugins import mirror
         self.mirror = mirror
         mirror.active.clear()
+        mirror.stopping.clear()
 
     async def test_mirror_rejects_same_source_destination(self):
         mirror = self.mirror

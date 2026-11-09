@@ -113,7 +113,7 @@ class FlowSafetyTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('still being processed', q.message.reply_text.await_args.args[0])
 
     async def test_duplicate_owner_grant_input_cannot_extend_twice(self):
-        from plugins import pay
+        from plugins import pay, owner_grant
         from utils import func
         menu.waiting[123] = 'owner_grant'
         entered, release = asyncio.Event(), asyncio.Event()
@@ -121,14 +121,14 @@ class FlowSafetyTests(unittest.IsolatedAsyncioTestCase):
         async def insert(*args, **kwargs):
             entered.set()
             await release.wait()
-            return SimpleNamespace(inserted_id='audit-1')
+            return SimpleNamespace(inserted_id='audit-1', acknowledged=True)
         audit.insert_one.side_effect = insert
         db = MagicMock()
         db.__getitem__.return_value = audit
         async def grant(invoice, charge):
             return {'applied_payments': [charge]}
         first, second = input_message('456 30'), input_message('456 30')
-        with patch.object(menu, 'OWNER_ID', [123]), patch.object(func, 'db', db), patch.object(func.premium_users_collection, 'create_index', new_callable=AsyncMock), patch.object(pay, 'grant_invoice', new_callable=AsyncMock, side_effect=grant) as grant_mock:
+        with patch.object(menu, 'OWNER_ID', [123]), patch.object(owner_grant, 'db', db), patch.object(owner_grant, 'check_premium_indexes_async', new_callable=AsyncMock), patch.object(func.premium_users_collection, 'create_index', new_callable=AsyncMock), patch.object(pay, 'grant_invoice', new_callable=AsyncMock, side_effect=grant) as grant_mock:
             task = asyncio.create_task(menu.menu_input(None, first))
             await entered.wait()
             await menu.menu_input(None, second)

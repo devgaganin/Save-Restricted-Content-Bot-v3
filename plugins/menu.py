@@ -77,7 +77,8 @@ PAGES = {
         [('📊 𝗧𝗔𝗦𝗞 𝗦𝗧𝗔𝗧𝗨𝗦', 'task'), ('🗂️ 𝗛𝗜𝗦𝗧𝗢𝗥𝗬', 'history')],
         [('🛑 𝗦𝗧𝗢𝗣 𝗧𝗔𝗦𝗞', 'stop')],
         [('⏸️ 𝗣𝗔𝗨𝗦𝗘', 'pause'), ('▶️ 𝗥𝗘𝗦𝗨𝗠𝗘', 'resume')],
-        [('🪞 𝗟𝗜𝗩𝗘 𝗠𝗜𝗥𝗥𝗢𝗥', 'mirror'), ('⏹️ 𝗦𝗧𝗢𝗣 𝗠𝗜𝗥𝗥𝗢𝗥', 'mirror_stop')]], 'home'),
+        [('🪞 𝗟𝗜𝗩𝗘 𝗠𝗜𝗥𝗥𝗢𝗥', 'mirror'), ('⏹️ 𝗦𝗧𝗢𝗣 𝗠𝗜𝗥𝗥𝗢𝗥', 'mirror_stop')],
+        [('📊 𝗠𝗜𝗥𝗥𝗢𝗥 𝗦𝗧𝗔𝗧𝗨𝗦', 'mirror_status')]], 'home'),
     'download': ('🎬 𝗗𝗢𝗪𝗡𝗟𝗢𝗔𝗗', '🌐 <b>Choose a format and then send a supported link.</b>\n⚠️ <b>Availability depends on the source.</b>', [
         [('🎥 𝗩𝗜𝗗𝗘𝗢', 'video'), ('🎵 𝗔𝗨𝗗𝗜𝗢', 'audio')]], 'home'),
     'account': ('🔐 𝗔𝗖𝗖𝗢𝗨𝗡𝗧', '👤 <b>Manage your Telegram session and custom bot.</b>\n⚠️ <b>Only connect an account to a bot operator you trust.</b>', [
@@ -100,7 +101,7 @@ PAGES = {
         [('💳 𝗥𝗔𝗭𝗢𝗥𝗣𝗔𝗬', 'razorpay'), ('🎁 𝗚𝗜𝗙𝗧 𝗖𝗔𝗥𝗗', 'gift')],
         [('⏰ 𝗥𝗘𝗠𝗜𝗡𝗗𝗘𝗥𝗦', 'reminders')]], 'home'),
     'filters': ('🔽 𝗠𝗘𝗗𝗜𝗔 𝗙𝗜𝗟𝗧𝗘𝗥', 'Choose which message types to process.', [[('📑 𝗔𝗟𝗟', 'filter_all'), ('🖼️ 𝗣𝗛𝗢𝗧𝗢', 'filter_photo')], [('🎬 𝗩𝗜𝗗𝗘𝗢', 'filter_video'), ('📄 𝗗𝗢𝗖𝗨𝗠𝗘𝗡𝗧', 'filter_document')], [('🎵 𝗔𝗨𝗗𝗜𝗢', 'filter_audio'), ('📝 𝗧𝗘𝗫𝗧', 'filter_text')]], 'settings'),
-    'owner': ('👑 𝗢𝗪𝗡𝗘𝗥 𝗣𝗔𝗡𝗘𝗟', '🛡️ <b>Owner-only controls. Changes are logged.</b>', [[('📊 𝗦𝗧𝗔𝗧𝗦', 'owner_stats')], [('➕ 𝗚𝗥𝗔𝗡𝗧', 'owner_grant'), ('🗑️ 𝗥𝗘𝗩𝗢𝗞𝗘', 'owner_revoke')], [('📢 𝗕𝗥𝗢𝗔𝗗𝗖𝗔𝗦𝗧', 'owner_broadcast'), ('🎁 𝗣𝗘𝗡𝗗𝗜𝗡𝗚', 'owner_gifts')], [('🧾 𝗣𝗔𝗬𝗠𝗘𝗡𝗧 𝗥𝗘𝗩𝗜𝗘𝗪', 'owner_payments')]], 'home'),
+    'owner': ('👑 𝗢𝗪𝗡𝗘𝗥 𝗣𝗔𝗡𝗘𝗟', '🛡️ <b>Owner-only controls. Changes are logged.</b>', [[('📊 𝗦𝗧𝗔𝗧𝗦', 'owner_stats')], [('➕ 𝗚𝗥𝗔𝗡𝗧', 'owner_grant'), ('🗑️ 𝗥𝗘𝗩𝗢𝗞𝗘', 'owner_revoke')], [('🔎 𝗖𝗛𝗘𝗖𝗞 𝗚𝗥𝗔𝗡𝗧', 'owner_grant_check')], [('📢 𝗕𝗥𝗢𝗔𝗗𝗖𝗔𝗦𝗧', 'owner_broadcast'), ('🎁 𝗣𝗘𝗡𝗗𝗜𝗡𝗚', 'owner_gifts')], [('🧾 𝗣𝗔𝗬𝗠𝗘𝗡𝗧 𝗥𝗘𝗩𝗜𝗘𝗪', 'owner_payments')]], 'home'),
     'language': ('🌐 𝗟𝗔𝗡𝗚𝗨𝗔𝗚𝗘 / भाषा', 'Choose the main menu and input-prompt language. Other workflows may still appear in English.', [[('🇬🇧 English', 'language_en'), ('🇮🇳 हिन्दी', 'language_hi')]], 'settings'),
     'help': ('❓ 𝗛𝗘𝗟𝗣', '1️⃣ <b>Set up your account and custom bot.</b>\n2️⃣ <b>Choose Single or Batch under Save Posts.</b>\n3️⃣ <b>Send the requested link and count.</b>\n\n🔒 <b>Never share login codes, passwords, tokens or gift-card codes with an untrusted operator.</b>', [], 'home'),
 }
@@ -117,8 +118,9 @@ PROMPTS = {
     'addbot': ('🤖 𝗔𝗗𝗗 𝗕𝗢𝗧', 'Send your custom bot token in this private chat only if you trust the operator: it grants control of your bot. The token is stored encrypted. Message deletion is best effort. Replacing it stops the live mirror. Only token format is checked, not Telegram validity. Revoke exposed tokens with BotFather.'),
     'owner_grant': ('➕ 𝗚𝗥𝗔𝗡𝗧 𝗣𝗥𝗘𝗠𝗜𝗨𝗠', 'Send user ID and number of days, for example: 123456789 30. This extends any active plan.'),
     'owner_revoke': ('🗑️ 𝗥𝗘𝗩𝗢𝗞𝗘 𝗣𝗥𝗘𝗠𝗜𝗨𝗠', 'Send the numeric user ID.'),
+    'owner_grant_check': ('🔎 𝗖𝗛𝗘𝗖𝗞 𝗚𝗥𝗔𝗡𝗧', 'Send the 24-character grant reference. This only checks history; it does not grant premium.'),
     'owner_broadcast': ('📢 𝗕𝗥𝗢𝗔𝗗𝗖𝗔𝗦𝗧', 'Send text to broadcast to active premium users. Please avoid sensitive information.'),
-    'mirror': ('🪞 𝗟𝗜𝗩𝗘 𝗠𝗜𝗥𝗥𝗢𝗥', 'Set a destination in Settings, then send the source username or numeric chat ID. Only new messages received while the bot is online are processed.'),
+    'mirror': ('🪞 𝗟𝗜𝗩𝗘 𝗠𝗜𝗥𝗥𝗢𝗥', 'Connect your account and custom bot, then set a destination. Active premium is required except for owners. Send a source @username or numeric chat ID; source and destination must differ. Only new messages while online are processed; missed messages are not recovered.'),
     'video': ('🎥 𝗩𝗜𝗗𝗘𝗢', 'Send a supported video link.'),
     'audio': ('🎵 𝗔𝗨𝗗𝗜𝗢', 'Send a supported video link for audio.'),
 }
@@ -508,9 +510,42 @@ async def menu_callback(client, query):
         await save_user_data(uid, 'remove_caption', remove)
         await query.message.edit_text(page('💬 𝗖𝗔𝗣𝗧𝗜𝗢𝗡', 'Original media caption will be removed.' if remove else 'Original media caption will be kept.'), reply_markup=markup([], 'settings'), parse_mode=ParseMode.HTML)
     elif action == 'mirror_stop':
+        from plugins.batch_queue import lock_for
         from plugins.mirror import stop_mirror
-        stopped = await stop_mirror(uid)
-        await query.message.edit_text(page('🪞 𝗠𝗜𝗥𝗥𝗢𝗥', 'Mirror stopped. An in-flight message may still finish.' if stopped else 'No active mirror.'), reply_markup=markup([], 'save'), parse_mode=ParseMode.HTML)
+        async with lock_for(uid):
+            language = await localization.language_for(uid)
+            hi = language == 'hi'
+            try:
+                stopped = await stop_mirror(uid, drain=True)
+                if stopped:
+                    body = ('मिरर रोक दिया गया। पहले से चल रही डिलीवरी रुकने से पहले पूरी हो सकती थी।' if hi else
+                            'Mirror stopped. A delivery already in progress may have finished before the stop completed.')
+                else:
+                    body = ('इस वर्कर में कोई चालू मिरर नहीं था। सेव मिरर होने पर उसकी स्थिति बंद की गई।' if hi else
+                            'No mirror was active in this worker. Any saved mirror was marked stopped.')
+            except Exception:
+                logger.warning('Could not confirm mirror stop')
+                body = ('मिरर बंद होने की पुष्टि नहीं हुई। सेव स्थिति अभी भी चालू हो सकती है और रीस्टार्ट पर मिरर फिर चल सकता है। दोबारा मिरर रोकें दबाएँ।' if hi else
+                        'Could not confirm the mirror stopped. Saved state may still be running and may restore on restart. Tap Stop Mirror again.')
+            await query.message.edit_text(page('🪞 लाइव मिरर' if hi else '🪞 𝗠𝗜𝗥𝗥𝗢𝗥', body), reply_markup=markup([[('📊 𝗠𝗜𝗥𝗥𝗢𝗥 𝗦𝗧𝗔𝗧𝗨𝗦', 'mirror_status')]], 'save', language), parse_mode=ParseMode.HTML)
+    elif action == 'mirror_status':
+        from plugins.mirror import status_snapshot
+        language = await localization.language_for(uid)
+        hi = language == 'hi'
+        try:
+            local, saved = await status_snapshot(uid)
+            local_names = {'running': 'चालू' if hi else 'Running', 'stopping': 'रुक रहा है / दोबारा रोकें' if hi else 'Stopping / retry Stop', 'inactive': 'इस वर्कर में चालू नहीं' if hi else 'Not active in this worker'}
+            saved_names = {'running': 'चालू के रूप में सेव' if hi else 'Saved as running', 'stopped': 'रुका हुआ सेव' if hi else 'Saved as stopped', 'error': 'त्रुटि' if hi else 'Error'}
+            stored = saved_names.get((saved or {}).get('status'), 'अज्ञात / कोई रिकॉर्ड नहीं' if hi else 'Unknown / no record')
+            local_text = local_names.get(local, 'अज्ञात' if hi else 'Unknown')
+            body = ((f'🖥️ <b>इस वर्कर में:</b> {local_text}\n💾 <b>सेव स्थिति:</b> {stored}\n\n'
+                     'केवल ऑनलाइन रहते समय नए संदेश प्रोसेस होते हैं; छूटे संदेश वापस नहीं आते। स्टेटस डिलीवरी की गारंटी नहीं है।') if hi else
+                    (f'🖥️ <b>This worker:</b> {local_text}\n💾 <b>Saved state:</b> {stored}\n\n'
+                     'Only new messages while online are processed; missed messages are not recovered. Status does not guarantee delivery.'))
+        except Exception:
+            logger.warning('Could not load mirror status')
+            body = ('मिरर की स्थिति जाँची नहीं जा सकी। बाद में फिर कोशिश करें।' if hi else 'Could not check mirror status. Try again later.')
+        await query.message.edit_text(page('📊 मिरर स्थिति' if hi else '📊 𝗠𝗜𝗥𝗥𝗢𝗥 𝗦𝗧𝗔𝗧𝗨𝗦', body), reply_markup=markup([[('🪞 𝗟𝗜𝗩𝗘 𝗠𝗜𝗥𝗥𝗢𝗥', 'mirror'), ('⏹️ 𝗦𝗧𝗢𝗣 𝗠𝗜𝗥𝗥𝗢𝗥', 'mirror_stop')]], 'save', language), parse_mode=ParseMode.HTML)
     elif action == 'status':
         # Distinguish a missing record from a failed read, and never render secrets.
         from utils.func import users_collection, premium_users_collection
@@ -968,24 +1003,19 @@ async def menu_input(client, message):
             if not await submit_reference(client, message, uid, text):
                 return
         elif action == 'owner_grant':
-            from plugins.pay import grant_invoice
-            from utils.func import premium_users_collection, db
-            parts = text.split()
-            if len(parts) != 2 or not all(x.isdigit() for x in parts) or not 1 <= int(parts[1]) <= 3650:
-                await message.reply_text('⚠️ Send a user ID and 1–3650 days.')
-                return
-            target, days = map(int, parts)
-            await premium_users_collection.create_index('user_id', unique=True)
-            audit = await db['admin_audit'].insert_one({'owner_id': uid, 'action': 'grant', 'target_id': target, 'days': days, 'status': 'processing'})
-            charge = 'manual:' + str(audit.inserted_id)
-            result = await grant_invoice({'user_id': target, 'days': days}, charge)
-            if not result or charge not in result.get('applied_payments', []):
-                raise RuntimeError('Premium grant not confirmed')
-            try:
-                await db['admin_audit'].update_one({'_id': audit.inserted_id}, {'$set': {'status': 'completed'}})
-            except Exception:
-                logger.exception('Grant succeeded but audit status update failed')
-            await message.reply_text(f'✅ Premium extended by {days} days for {target}.')
+            from plugins.owner_grant import apply_owner_grant
+            language = await localization.language_for(uid)
+            finished = await apply_owner_grant(client, message, uid, text, language)
+            if finished:
+                waiting.pop(uid, None)
+            return
+        elif action == 'owner_grant_check':
+            from plugins.owner_grant import check_owner_grant
+            language = await localization.language_for(uid)
+            finished = await check_owner_grant(message, uid, text, language)
+            if finished:
+                waiting.pop(uid, None)
+            return
         elif action == 'owner_revoke':
             from utils.func import premium_users_collection, db
             if not text.isdigit():
@@ -1055,17 +1085,27 @@ async def menu_input(client, message):
             return
         elif action == 'mirror':
             from plugins.mirror import start_mirror
+            language = await localization.language_for(uid)
+            hi = language == 'hi'
             if not re.fullmatch(r'(?:@[A-Za-z0-9_]{4,32}|-?\d{5,20})', text):
-                await message.reply_text('⚠️ Send @username or a numeric chat ID.')
+                body = '⚠️ @username या संख्यात्मक चैट ID भेजें।' if hi else '⚠️ Send @username or a numeric chat ID.'
+                await message.reply_text(body, reply_markup=markup([[('❌ 𝗖𝗔𝗡𝗖𝗘𝗟', 'cancel')]], language=language))
                 return
             source = int(text) if re.fullmatch(r'-?\d+', text) else text
             from plugins.batch_queue import lock_for
             async with lock_for(uid):
                 if waiting.get(uid) != action:
                     return
-                ok, reason = await start_mirror(uid, source)
-            waiting.pop(uid, None)
-            await message.reply_text(page('🪞 𝗠𝗜𝗥𝗥𝗢𝗥', html.escape(reason)), reply_markup=markup([], 'save'), parse_mode=ParseMode.HTML)
+                try:
+                    ok, reason = await start_mirror(uid, source)
+                except Exception:
+                    logger.warning('Mirror start result uncertain')
+                    ok = False
+                    reason = ('मिरर शुरू होने की पुष्टि नहीं हुई; सेव स्थिति रीस्टार्ट पर बहाल हो सकती है। मिरर स्थिति जाँचें या मिरर रोकें दबाएँ।' if hi else
+                              'Could not confirm mirror start; saved state may restore on restart. Check Mirror Status or tap Stop Mirror.')
+                waiting.pop(uid, None)
+            body = localization.translate(reason, language)
+            await message.reply_text(page('🪞 लाइव मिरर' if hi else '🪞 𝗠𝗜𝗥𝗥𝗢𝗥', html.escape(body)), reply_markup=markup([[('📊 𝗠𝗜𝗥𝗥𝗢𝗥 𝗦𝗧𝗔𝗧𝗨𝗦', 'mirror_status')]], 'save', language), parse_mode=ParseMode.HTML)
             return
         elif action == 'destination':
             if not re.fullmatch(r'-?\d+(?:/\d+)?', text):
